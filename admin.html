@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>SINADIGA - Administração</title>
+<link rel="stylesheet" href="estilo.css">
+</head>
+<body>
+
+<div id="topo"><b>SINADIGA</b> &nbsp;|&nbsp; Administração de cadastros</div>
+<nav><a href="index.html">Início</a><a href="cadastro.html">Cadastro de Gatos</a><a class="on">Administração</a></nav>
+
+<main>
+  <h1>Moderação de cadastros</h1>
+  <form id="login">
+    <label for="token">Senha de administrador:</label>
+    <input type="password" id="token" autocomplete="current-password" required>
+    <div class="btns"><button>Entrar</button></div>
+  </form>
+  <div id="msg" hidden></div>
+  <div id="painel" hidden>
+    <h1 style="margin-top:20px">Aguardando aprovação</h1>
+    <div id="pendentes"></div>
+    <h1 style="margin-top:24px">Aprovados</h1>
+    <div id="aprovados"></div>
+    <div class="btns"><button id="sair">Sair</button></div>
+  </div>
+</main>
+
+<script src="config.js"></script>
+<script src="gatos.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+let token = sessionStorage.getItem("sinadiga.admin") || "";
+const H = () => ({ Authorization: "Bearer " + token });
+function aviso(t, ok) { const m = $("msg"); m.hidden = !t; m.className = ok ? "ok" : "erro"; m.textContent = t || ""; }
+
+async function foto(id) { // a foto exige o token, então busca como arquivo e exibe localmente
+  const r = await fetch(`${SINADIGA.api}/admin/gatos/${id}/foto`, { headers: H() });
+  return r.ok ? URL.createObjectURL(await r.blob()) : "";
+}
+async function acao(metodo, caminho) {
+  const r = await fetch(SINADIGA.api + caminho, { method: metodo, headers: H() });
+  if (!r.ok) return aviso("Falha na operação (" + r.status + ").", false);
+  carregarLista();
+}
+function tabela(el, gatos, aprovados) {
+  el.innerHTML = gatos.length
+    ? `<table><thead><tr><th>Foto</th><th>Nome</th><th>Nascimento</th><th>Idade</th><th>Enviado em</th><th></th></tr></thead><tbody>${gatos.map(g =>
+        `<tr><td><img data-foto="${g.id}" alt="" style="width:60px;height:80px"></td><td>${escHtml(g.nome)}</td><td>${nascTexto(g)}</td><td>${idadeTexto(g)}</td><td>${new Date(g.criado).toLocaleString("pt-BR")}</td>
+        <td>${aprovados ? "" : `<button data-ap="${g.id}">Aprovar</button> `}<button data-rm="${g.id}">${aprovados ? "Remover" : "Rejeitar"}</button></td></tr>`).join("")}</tbody></table>`
+    : "<p>Nenhum cadastro.</p>";
+  el.querySelectorAll("[data-ap]").forEach(b => b.onclick = () => acao("POST", `/admin/gatos/${b.dataset.ap}/aprovar`));
+  el.querySelectorAll("[data-rm]").forEach(b => b.onclick = () => confirm("Excluir este cadastro definitivamente?") && acao("DELETE", `/admin/gatos/${b.dataset.rm}`));
+  el.querySelectorAll("img[data-foto]").forEach(async i => { i.src = await foto(i.dataset.foto); });
+}
+async function carregarLista() {
+  const r = await fetch(SINADIGA.api + "/admin/gatos", { headers: H() });
+  if (r.status === 401) { sessionStorage.removeItem("sinadiga.admin"); token = ""; $("painel").hidden = true; $("login").hidden = false; return aviso("Senha incorreta.", false); }
+  if (!r.ok) return aviso("Não foi possível carregar (" + r.status + ").", false);
+  const todos = await r.json();
+  aviso("");
+  $("login").hidden = true; $("painel").hidden = false;
+  tabela($("pendentes"), todos.filter(g => g.status === "pendente"), false);
+  tabela($("aprovados"), todos.filter(g => g.status === "aprovado"), true);
+}
+$("login").onsubmit = e => { e.preventDefault(); token = $("token").value; sessionStorage.setItem("sinadiga.admin", token); $("token").value = ""; carregarLista(); };
+$("sair").onclick = () => { sessionStorage.removeItem("sinadiga.admin"); token = ""; $("painel").hidden = true; $("login").hidden = false; };
+if (token) carregarLista();
+</script>
+</body>
+</html>

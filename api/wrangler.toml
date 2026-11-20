@@ -1,0 +1,14 @@
+name = "sinadiga-api"
+main = "src/index.js"
+compatibility_date = "2025-09-01"
+workers_dev = true
+preview_urls = false
+
+[[d1_databases]]
+binding = "DB"
+database_name = "sinadiga"
+database_id = "83a7d5ed-5978-4638-ae3c-ad02d8e1072d"
+
+[vars]
+# sites autorizados a chamar a API pelo navegador (CORS)
+ALLOWED_ORIGINS = "https://vgsss.github.io,http://localhost:8765"
