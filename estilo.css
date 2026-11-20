@@ -66,3 +66,6 @@
   dialog::backdrop { background:#0006; }
   dialog h1 { margin:0 0 8px; }
   dialog select { width:100%; }
+  .alerta { background:#fff4c2; border:1px solid #d9a400; color:#5a4300; padding:8px 10px; margin:0 0 10px; font-weight:bold; }
+  tr.novo td { background:#fff9db; }
+  .selo { background:#d9352b; color:#fff; font-size:9px; padding:1px 4px; margin-left:4px; }

@@ -12,14 +12,14 @@ const resp = (corpo, status, cors, extra = {}) =>
   new Response(JSON.stringify(corpo), { status, headers: { "content-type": "application/json; charset=utf-8", ...cors, ...extra } });
 
 export default {
-  async fetch(req, env) {
+  async fetch(req, env, ctx) {
     const origem = req.headers.get("Origin") || "";
     const ok = (env.ALLOWED_ORIGINS || "").split(",").map(s => s.trim()).includes(origem);
     const cors = ok
       ? { "Access-Control-Allow-Origin": origem, Vary: "Origin", "Access-Control-Allow-Headers": "Content-Type, Authorization", "Access-Control-Allow-Methods": "GET,POST,DELETE,OPTIONS" }
       : { Vary: "Origin" };
     if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
-    try { return await rota(req, env, new URL(req.url), cors); }
+    try { return await rota(req, env, new URL(req.url), cors, ctx); }
     catch (e) { console.error(e); return resp({ erro: "Erro interno." }, 500, cors); }
   },
 };
@@ -41,7 +41,7 @@ function fotoResp(b64, cors, cache) {
   return new Response(bytesDoBase64(b64), { headers: { "content-type": "image/jpeg", "cache-control": cache, "x-content-type-options": "nosniff", ...cors } });
 }
 
-async function rota(req, env, url, cors) {
+async function rota(req, env, url, cors, ctx) {
   const p = url.pathname.replace(/\/+$/, "") || "/";
   const m = req.method;
   let r;
@@ -55,11 +55,15 @@ async function rota(req, env, url, cors) {
     const g = await env.DB.prepare("SELECT foto FROM gatos WHERE id=? AND status='aprovado'").bind(r[1]).first();
     return g ? fotoResp(g.foto, cors, "public, max-age=86400") : resp({ erro: "Não encontrado." }, 404, cors);
   }
-  if (m === "POST" && p === "/gatos") return cadastrar(req, env, cors);
+  if (m === "POST" && p === "/gatos") return cadastrar(req, env, cors, ctx);
 
   // ---------- administrador ----------
   if (p.startsWith("/admin/")) {
     if (!(await ehAdmin(req, env))) return resp({ erro: "Não autorizado." }, 401, cors);
+    if (m === "POST" && p === "/admin/telegram-teste") { // confere se o bot está configurado: manda uma mensagem de teste
+      const x = await telegram(env, "sendMessage", { text: "Teste do SINADIGA: as notificações de novos cadastros estão funcionando." });
+      return resp(x, x.ok ? 200 : 502, cors);
+    }
     if (m === "GET" && p === "/admin/gatos") {
       const { results } = await env.DB.prepare("SELECT id, nome, mes, ano, dia, cidade, uf, instagram, status, criado FROM gatos ORDER BY status DESC, criado DESC LIMIT 500").all();
       return resp(results, 200, cors, { "cache-control": "no-store" });
@@ -88,7 +92,7 @@ function normalizarInstagram(v) {
   return /^(?!\.)(?!.*\.\.)(?!.*\.$)[A-Za-z0-9._]{1,30}$/.test(s) ? s.toLowerCase() : null;
 }
 
-async function cadastrar(req, env, cors) {
+async function cadastrar(req, env, cors, ctx) {
   const b = await req.json().catch(() => null);
   if (!b || typeof b !== "object") return resp({ erro: "Dados inválidos." }, 400, cors);
 
@@ -142,5 +146,31 @@ async function cadastrar(req, env, cors) {
 
   await env.DB.prepare("INSERT INTO gatos (id, nome, mes, ano, dia, cidade, uf, instagram, foto, status, ip, criado) VALUES (?,?,?,?,?,?,?,?,?, 'pendente', ?, ?)")
     .bind(crypto.randomUUID(), nome, mes, ano, dia, cidade, uf, instagram, foto, ipHash, Date.now()).run();
+  ctx?.waitUntil(avisarNovoCadastro(env, { nome, mes, ano, dia, cidade, uf, instagram }, bytes));
   return resp({ ok: true, mensagem: "Cadastro enviado para aprovação." }, 201, cors);
+}
+
+// ---------- notificação por Telegram ----------
+// Segredos (wrangler secret put): TELEGRAM_BOT_TOKEN e TELEGRAM_CHAT_ID. Sem eles, nada é enviado e o cadastro segue normal.
+async function telegram(env, metodo, campos, foto) {
+  if (!env.TELEGRAM_BOT_TOKEN || !env.TELEGRAM_CHAT_ID) return { ok: false, descricao: "Telegram não configurado (faltam TELEGRAM_BOT_TOKEN e TELEGRAM_CHAT_ID)." };
+  const fd = new FormData();
+  fd.append("chat_id", env.TELEGRAM_CHAT_ID);
+  for (const [k, v] of Object.entries(campos)) fd.append(k, v);
+  if (foto) fd.append("photo", new Blob([foto], { type: "image/jpeg" }), "gato.jpg");
+  try {
+    const r = await fetch(`${env.TELEGRAM_API || "https://api.telegram.org"}/bot${env.TELEGRAM_BOT_TOKEN}/${metodo}`, { method: "POST", body: fd });
+    const j = await r.json().catch(() => ({}));
+    if (!j.ok) console.error("Telegram falhou:", r.status, j.description); // nunca registra o token
+    return { ok: !!j.ok, descricao: j.ok ? "Enviado." : (j.description || "Falha ao enviar.") };
+  } catch (e) {
+    console.error("Telegram indisponível:", e.message);
+    return { ok: false, descricao: "Telegram indisponível." };
+  }
+}
+async function avisarNovoCadastro(env, g, fotoBytes) {
+  const nasc = (g.dia ? String(g.dia).padStart(2, "0") + "/" : "") + String(g.mes).padStart(2, "0") + "/" + g.ano;
+  // texto puro (sem parse_mode): nada digitado pelo visitante é interpretado como formatação
+  const legenda = `Novo gato aguardando aprovação\nNome: ${g.nome}\nNascimento: ${nasc}\nLocal: ${g.cidade}/${g.uf}\nInstagram: ${g.instagram}\n\nAprovar ou rejeitar: ${env.ADMIN_URL || ""}`;
+  await telegram(env, "sendPhoto", { caption: legenda }, fotoBytes);
 }

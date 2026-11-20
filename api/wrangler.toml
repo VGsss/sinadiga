@@ -12,3 +12,5 @@ database_id = "83a7d5ed-5978-4638-ae3c-ad02d8e1072d"
 [vars]
 # sites autorizados a chamar a API pelo navegador (CORS)
 ALLOWED_ORIGINS = "https://vgsss.github.io,http://localhost:8765"
+# endereço do painel, incluído na mensagem do Telegram
+ADMIN_URL = "https://vgsss.github.io/sinadiga/admin.html"
