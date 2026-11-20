@@ -42,7 +42,7 @@
   .erro { border:1px solid #c33; background:#ffeaea; padding:6px 8px; margin:12px 0; color:#a22; }
   td img { width:36px; height:48px; object-fit:cover; display:block; }
   .carrossel { max-width:900px; margin:10px auto 40px; padding:0 16px; border-top:1px solid #ccc; padding-top:18px; }
-  .carrossel h2 { font-size:14px; color:#1a3d6d; margin:0 0 4px; }
+  .carrossel h2 { font-size:14px; color:#1a3d6d; margin:0 0 10px; text-align:center; }
   .carrossel > p { margin:0 0 14px; }
   .car-wrap { position:relative; }
   .trilho { display:flex; gap:20px; overflow-x:auto; scroll-snap-type:x mandatory; scroll-behavior:smooth; padding-bottom:6px; scrollbar-width:thin; }
@@ -69,6 +69,8 @@
   .alerta { background:#fff4c2; border:1px solid #d9a400; color:#5a4300; padding:8px 10px; margin:0 0 10px; font-weight:bold; }
   tr.novo td { background:#fff9db; }
   .selo { background:#d9352b; color:#fff; font-size:9px; padding:1px 4px; margin-left:4px; }
-  .car-topo { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:14px; }
+  .car-topo { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:14px; }
   .car-topo p { margin:0; }
   .car-topo .filtro { flex:none; white-space:nowrap; }
+  #rodape { max-width:900px; margin:0 auto 30px; padding:14px 16px; border-top:1px solid #ccc; text-align:center; font-weight:bold; color:#1a3d6d; }
+  @media print { #rodape { display:none } }

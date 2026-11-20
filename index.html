@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SINADIGA - Atestado de Antecedentes Felinos</title>
-<link rel="stylesheet" href="estilo.css?v=7">
+<link rel="stylesheet" href="estilo.css?v=9">
 </head>
 <body>
 
@@ -15,7 +15,7 @@
   <a data-s="2">Pesquisa de RGF</a>
   <a data-s="3" class="off">Resultado da Pesquisa</a>
   <a href="cadastro.html" class="ext">Cadastro de Gatos para Adoção</a>
-  <a class="fale" id="fale">fale conosco</a>
+  <a class="fale" href="mailto:rafaelbrodriguesdev+sinadigasac@gmail.com?subject=Fale%20conosco%20-%20SINADIGA">fale conosco</a>
 </nav>
 
 <main>
@@ -76,6 +76,7 @@
 </main>
 
 <div id="carrossel"></div>
+<footer id="rodape"></footer>
 
 <dialog id="modalFiltro">
   <form method="dialog" id="formFiltro">
@@ -88,9 +89,10 @@
     <div class="btns"><button id="fOk" disabled>Aplicar filtro</button><button type="button" id="fTodos">Ver todos os gatos</button><button type="button" id="fFechar">Agora não</button></div>
   </form>
 </dialog>
-<script src="config.js?v=7"></script>
-<script src="gatos.js?v=7"></script>
-<script src="local.js?v=7"></script>
+<script src="config.js?v=8"></script>
+<script src="gatos.js?v=8"></script>
+<script src="local.js?v=8"></script>
+<script src="rodape.js?v=9"></script>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
@@ -379,7 +381,6 @@ $("validar").onclick = () => {
   m.hidden = false;
   m.textContent = "Atestado inválido: o documento foi encontrado, porém o gato dormiu em cima dele.";
 };
-$("fale").onclick = () => alert("Seu miado foi registrado sob o protocolo " + (10000 + rnd(90000)) + ". Prazo de resposta: 90 dias úteis ou até a hora da ração, o que ocorrer primeiro.");
 $("form").onsubmit = e => { e.preventDefault(); gerar(); };
 $("outra").onclick = gerar;
 $("baixar").onclick = baixarPDF;

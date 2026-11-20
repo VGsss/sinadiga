@@ -44,7 +44,7 @@ async function renderCarrossel(opc = {}) {
   if (!el) return;
   const minha = ++__ultimaRenderizacao; // se outra renderização começar antes desta terminar, esta é descartada
   el.className = "carrossel";
-  const topo = (titulo, texto) => `<div class="car-topo"><div><h2>${titulo}</h2><p>${texto}</p></div><button type="button" class="filtro">Filtrar por cidade</button></div>`;
+  const topo = (titulo, texto) => `<h2>${titulo}</h2><div class="car-topo"><p>${texto}</p><button type="button" class="filtro">Filtrar por cidade</button></div>`;
   const ligarFiltro = () => { const b = el.querySelector(".filtro"); if (b) b.onclick = () => window.abrirFiltro && window.abrirFiltro(); };
   let gatos;
   try {
@@ -53,11 +53,11 @@ async function renderCarrossel(opc = {}) {
     gatos = await r.json();
   } catch (e) {
     if (minha !== __ultimaRenderizacao) return;
-    el.innerHTML = topo("Gatos procurados para adoção", "Não foi possível carregar a lista de gatos agora. Tente novamente mais tarde."); return ligarFiltro();
+    el.innerHTML = topo("Gatos procurados", "Não foi possível carregar a lista de gatos agora. Tente novamente mais tarde."); return ligarFiltro();
   }
   if (minha !== __ultimaRenderizacao) return;
 
-  let titulo = "Gatos procurados para adoção", nota = "";
+  let titulo = "Gatos procurados", nota = "";
   if (opc.limite) { gatos = gatos.slice(0, opc.limite); titulo = gatos.length < opc.limite ? "Últimos gatos cadastrados" : `Últimos ${opc.limite} gatos cadastrados`; }
   else if (opc.filtro) ({ gatos, nota } = filtrarGatos(gatos, opc.filtro, opc.gps));
   if (!gatos.length) { el.innerHTML = topo(titulo, 'Nenhum gato aprovado ainda. <a class="l" href="cadastro.html">Cadastre o primeiro</a>.'); return ligarFiltro(); }
