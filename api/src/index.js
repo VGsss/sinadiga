@@ -45,7 +45,7 @@ async function rota(req, env, url, cors) {
 
   // ---------- público ----------
   if (m === "GET" && p === "/gatos") {
-    const { results } = await env.DB.prepare("SELECT id, nome, mes, ano, dia FROM gatos WHERE status='aprovado' ORDER BY criado DESC LIMIT 200").all();
+    const { results } = await env.DB.prepare("SELECT id, nome, mes, ano, dia, instagram FROM gatos WHERE status='aprovado' ORDER BY criado DESC LIMIT 200").all();
     return resp(results, 200, cors, { "cache-control": "public, max-age=60" });
   }
   if (m === "GET" && (r = p.match(/^\/gatos\/([\w-]{36})\/foto$/))) {
@@ -58,7 +58,7 @@ async function rota(req, env, url, cors) {
   if (p.startsWith("/admin/")) {
     if (!(await ehAdmin(req, env))) return resp({ erro: "Não autorizado." }, 401, cors);
     if (m === "GET" && p === "/admin/gatos") {
-      const { results } = await env.DB.prepare("SELECT id, nome, mes, ano, dia, status, criado FROM gatos ORDER BY status DESC, criado DESC LIMIT 500").all();
+      const { results } = await env.DB.prepare("SELECT id, nome, mes, ano, dia, instagram, status, criado FROM gatos ORDER BY status DESC, criado DESC LIMIT 500").all();
       return resp(results, 200, cors, { "cache-control": "no-store" });
     }
     if (m === "GET" && (r = p.match(/^\/admin\/gatos\/([\w-]{36})\/foto$/))) {
@@ -77,6 +77,16 @@ async function rota(req, env, url, cors) {
   return resp({ erro: "Não encontrado." }, 404, cors);
 }
 
+// Aceita "@usuario", "usuario" ou "instagram.com/usuario"; devolve só o nome de usuário válido (minúsculo) ou null.
+// Regras do Instagram: 1 a 30 caracteres entre letras, números, ponto e sublinhado; sem ".." nem ponto no fim.
+// ponytail: só valida o formato, não confirma se a conta existe.
+function normalizarInstagram(v) {
+  const s = String(v ?? "").trim()
+    .replace(/^https?:\/\/(www\.)?instagram\.com\//i, "").replace(/^instagram\.com\//i, "")
+    .replace(/^@/, "").replace(/[/?#].*$/, "");
+  return /^(?!\.)(?!.*\.\.)(?!.*\.$)[A-Za-z0-9._]{1,30}$/.test(s) ? s.toLowerCase() : null;
+}
+
 async function cadastrar(req, env, cors) {
   const b = await req.json().catch(() => null);
   if (!b || typeof b !== "object") return resp({ erro: "Dados inválidos." }, 400, cors);
@@ -92,6 +102,11 @@ async function cadastrar(req, env, cors) {
     if (!Number.isInteger(dia) || t.getUTCMonth() !== mes - 1) return resp({ erro: "O dia não existe nesse mês." }, 400, cors);
     if (t > agora) return resp({ erro: "A data não pode estar no futuro." }, 400, cors);
   } else if (ano === anoAtual && mes > agora.getUTCMonth() + 1) return resp({ erro: "A data não pode estar no futuro." }, 400, cors);
+
+  // instagram de contato (será exibido publicamente no botão "Quero adotar"); a pessoa precisa concordar
+  const instagram = normalizarInstagram(b.instagram);
+  if (!instagram) return resp({ erro: "Instagram inválido. Use só o nome de usuário, como @gatinhos.do.bairro." }, 400, cors);
+  if (b.aceite !== true) return resp({ erro: "É preciso concordar com a exibição pública do Instagram." }, 400, cors);
 
   // foto: precisa ser JPEG de verdade (começa com FFD8FF, termina com FFD9) e de tamanho razoável
   const f = String(b.foto ?? "");
@@ -118,7 +133,7 @@ async function cadastrar(req, env, cors) {
   const fila = await env.DB.prepare("SELECT COUNT(*) AS n FROM gatos WHERE status='pendente'").first();
   if (fila.n >= MAX_PENDENTES) return resp({ erro: "Fila de aprovação cheia. Tente mais tarde." }, 503, cors);
 
-  await env.DB.prepare("INSERT INTO gatos (id, nome, mes, ano, dia, foto, status, ip, criado) VALUES (?,?,?,?,?,?, 'pendente', ?, ?)")
-    .bind(crypto.randomUUID(), nome, mes, ano, dia, foto, ipHash, Date.now()).run();
+  await env.DB.prepare("INSERT INTO gatos (id, nome, mes, ano, dia, instagram, foto, status, ip, criado) VALUES (?,?,?,?,?,?,?, 'pendente', ?, ?)")
+    .bind(crypto.randomUUID(), nome, mes, ano, dia, instagram, foto, ipHash, Date.now()).run();
   return resp({ ok: true, mensagem: "Cadastro enviado para aprovação." }, 201, cors);
 }

@@ -34,6 +34,10 @@
     </div>
     <p class="desc" style="margin:4px 0 0">* campos obrigatórios. Se o dia exato for desconhecido, deixe em branco.</p>
 
+    <label for="instagram">Seu Instagram (para contato da adoção): *</label>
+    <input type="text" id="instagram" maxlength="60" placeholder="@seu.usuario" autocomplete="off" required>
+    <label class="aceite"><input type="checkbox" id="aceite" required> Concordo que meu Instagram seja exibido publicamente no botão "Quero adotar", para que interessados entrem em contato comigo.</label>
+
     <div id="captcha" style="margin-top:12px"></div>
     <div class="btns"><button id="enviar">Cadastrar gato</button></div>
   </form>
@@ -78,6 +82,9 @@ $("form").onsubmit = async e => {
   e.preventDefault();
   const f = $("foto").files[0], nome = $("nome").value.trim(), mes = +$("mes").value, ano = +$("ano").value, dia = $("dia").value ? +$("dia").value : null;
   if (!f || !nome || !mes || !ano) return aviso("Preencha foto, nome, mês e ano de nascimento.", false);
+  const instagram = normalizarInstagram($("instagram").value);
+  if (!instagram) return aviso("Instagram inválido. Use só o nome de usuário, como @gatinhos.do.bairro.", false);
+  if (!$("aceite").checked) return aviso("Marque a concordância com a exibição pública do seu Instagram.", false);
   if (ano < 1990 || ano > hoje.getFullYear()) return aviso("Ano de nascimento inválido.", false);
   if (dia) {
     const t = new Date(ano, mes - 1, dia);
@@ -91,7 +98,7 @@ $("form").onsubmit = async e => {
   const u = URL.createObjectURL(f);
   try {
     const foto = recortar(await carregar(u), 300, 400);
-    const r = await fetch(SINADIGA.api + "/gatos", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ nome, mes, ano, dia, foto, captcha }) });
+    const r = await fetch(SINADIGA.api + "/gatos", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ nome, mes, ano, dia, instagram, aceite: true, foto, captcha }) });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) { aviso(j.erro || "Não foi possível enviar o cadastro.", false); }
     else { aviso(`${nome} foi enviado para aprovação. Assim que a administração aprovar, o gato aparece no painel de procurados.`, true); $("form").reset(); $("previa").hidden = true; }

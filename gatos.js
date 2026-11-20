@@ -13,7 +13,19 @@ function idadeTexto(g) {
   const p = [an && an + (an > 1 ? " anos" : " ano"), me && me + (me > 1 ? " meses" : " mês")].filter(Boolean);
   return p.length ? p.join(" e ") : "recém-nascido";
 }
+// Aceita "@usuario", "usuario" ou "instagram.com/usuario"; devolve só o usuário válido (minúsculo) ou null. Mesma regra da API.
+function normalizarInstagram(v) {
+  const s = String(v ?? "").trim()
+    .replace(/^https?:\/\/(www\.)?instagram\.com\//i, "").replace(/^instagram\.com\//i, "")
+    .replace(/^@/, "").replace(/[/?#].*$/, "");
+  return /^(?!\.)(?!.*\.\.)(?!.*\.$)[A-Za-z0-9._]{1,30}$/.test(s) ? s.toLowerCase() : null;
+}
 const escHtml = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+function botaoAdotar(g) { // o link só é montado com um usuário que passou na validação
+  const u = normalizarInstagram(g.instagram);
+  return u ? `<a class="adotar" href="https://www.instagram.com/${u}/" target="_blank" rel="noopener noreferrer">Quero adotar</a>` : "";
+}
 
 async function renderCarrossel() {
   const el = document.getElementById("carrossel");
@@ -33,7 +45,7 @@ async function renderCarrossel() {
     <div class="car-wrap"><button class="car-btn prev" aria-label="Anterior">‹</button>
     <div class="trilho" tabindex="0">${gatos.map(g => `<div class="card-p"><div class="faixa">PROCURADO</div>
       <div class="poster"><img src="${SINADIGA.api}/gatos/${g.id}/foto" alt="Foto de ${escHtml(g.nome)}" loading="lazy"></div>
-      <p class="nome">${escHtml(g.nome)}</p><p class="data">Nascido em ${nascTexto(g)}</p><p class="data">Idade: ${idadeTexto(g)}</p></div>`).join("")}</div>
+      <p class="nome">${escHtml(g.nome)}</p><p class="data">Nascido em ${nascTexto(g)}</p><p class="data">Idade: ${idadeTexto(g)}</p>${botaoAdotar(g)}</div>`).join("")}</div>
     <button class="car-btn next" aria-label="Próximo">›</button></div>`;
   const t = el.querySelector(".trilho"), passo = () => t.querySelector(".card-p").offsetWidth + 20;
   const prox = () => t.scrollLeft + t.clientWidth >= t.scrollWidth - 20 ? t.scrollTo({ left: 0 }) : t.scrollBy({ left: passo() });

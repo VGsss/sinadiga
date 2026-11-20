@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS gatos (
   mes     INTEGER NOT NULL,
   ano     INTEGER NOT NULL,
   dia     INTEGER,                             -- opcional
+  instagram TEXT NOT NULL DEFAULT '',          -- contato público de quem cadastrou (sem @)
   foto    TEXT NOT NULL,                       -- JPEG em base64, sem prefixo
   status  TEXT NOT NULL DEFAULT 'pendente',    -- pendente | aprovado
   ip      TEXT NOT NULL,                       -- hash do IP, só para limitar abuso
