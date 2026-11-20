@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
 <title>SINADIGA - Administração</title>
-<link rel="stylesheet" href="estilo.css?v=3">
+<link rel="stylesheet" href="estilo.css?v=5">
 </head>
 <body>
 
@@ -29,8 +29,8 @@
   </div>
 </main>
 
-<script src="config.js?v=3"></script>
-<script src="gatos.js?v=3"></script>
+<script src="config.js?v=5"></script>
+<script src="gatos.js?v=5"></script>
 <script>
 const $ = id => document.getElementById(id);
 let token = sessionStorage.getItem("sinadiga.admin") || "";
@@ -48,8 +48,8 @@ async function acao(metodo, caminho) {
 }
 function tabela(el, gatos, aprovados) {
   el.innerHTML = gatos.length
-    ? `<table><thead><tr><th>Foto</th><th>Nome</th><th>Nascimento</th><th>Idade</th><th>Instagram</th><th>Enviado em</th><th></th></tr></thead><tbody>${gatos.map(g =>
-        `<tr><td><img data-foto="${g.id}" alt="" style="width:60px;height:80px"></td><td>${escHtml(g.nome)}</td><td>${nascTexto(g)}</td><td>${idadeTexto(g)}</td><td>${normalizarInstagram(g.instagram) ? `<a class="l" href="https://www.instagram.com/${normalizarInstagram(g.instagram)}/" target="_blank" rel="noopener noreferrer">${normalizarInstagram(g.instagram)}</a>` : "-"}</td><td>${new Date(g.criado).toLocaleString("pt-BR")}</td>
+    ? `<table><thead><tr><th>Foto</th><th>Nome</th><th>Nascimento</th><th>Idade</th><th>Local</th><th>Instagram</th><th>Enviado em</th><th></th></tr></thead><tbody>${gatos.map(g =>
+        `<tr><td><img data-foto="${g.id}" alt="" style="width:60px;height:80px"></td><td>${escHtml(g.nome)}</td><td>${nascTexto(g)}</td><td>${idadeTexto(g)}</td><td>${g.cidade ? escHtml(localTexto(g)) : "-"}</td><td>${normalizarInstagram(g.instagram) ? `<a class="l" href="https://www.instagram.com/${normalizarInstagram(g.instagram)}/" target="_blank" rel="noopener noreferrer">${normalizarInstagram(g.instagram)}</a>` : "-"}</td><td>${new Date(g.criado).toLocaleString("pt-BR")}</td>
         <td>${aprovados ? "" : `<button data-ap="${g.id}">Aprovar</button> `}<button data-rm="${g.id}">${aprovados ? "Remover" : "Rejeitar"}</button></td></tr>`).join("")}</tbody></table>`
     : "<p>Nenhum cadastro.</p>";
   el.querySelectorAll("[data-ap]").forEach(b => b.onclick = () => acao("POST", `/admin/gatos/${b.dataset.ap}/aprovar`));

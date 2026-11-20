@@ -4,6 +4,8 @@ CREATE TABLE IF NOT EXISTS gatos (
   mes     INTEGER NOT NULL,
   ano     INTEGER NOT NULL,
   dia     INTEGER,                             -- opcional
+  cidade  TEXT NOT NULL DEFAULT '',            -- nome oficial (IBGE)
+  uf      TEXT NOT NULL DEFAULT '',            -- sigla do estado
   instagram TEXT NOT NULL DEFAULT '',          -- contato público de quem cadastrou (sem @)
   foto    TEXT NOT NULL,                       -- JPEG em base64, sem prefixo
   status  TEXT NOT NULL DEFAULT 'pendente',    -- pendente | aprovado

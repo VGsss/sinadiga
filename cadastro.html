@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SINADIGA - Cadastro de Gatos para Adoção</title>
-<link rel="stylesheet" href="estilo.css?v=3">
+<link rel="stylesheet" href="estilo.css?v=5">
 </head>
 <body>
 
@@ -34,6 +34,13 @@
     </div>
     <p class="desc" style="margin:4px 0 0">* campos obrigatórios. Se o dia exato for desconhecido, deixe em branco.</p>
 
+    <div class="linha">
+      <div><label for="uf">Estado onde o gato está: *</label><select id="uf" required><option value="">Carregando...</option></select></div>
+      <div><label for="cidade">Cidade: *</label><select id="cidade" required disabled style="min-width:230px"><option value="">Selecione o estado</option></select></div>
+      <div><button type="button" id="usarLoc">Usar minha localização</button></div>
+    </div>
+    <p class="desc" id="locInfo" style="margin:4px 0 0">Só é possível escolher cidades brasileiras da lista oficial do IBGE.</p>
+
     <label for="instagram">Seu Instagram (só o usuário, sem o @): *</label>
     <input type="text" id="instagram" maxlength="30" placeholder="seu.usuario" autocomplete="off" autocapitalize="none" spellcheck="false" required>
     <div class="dica" id="dicaInsta"></div>
@@ -45,10 +52,22 @@
   <div id="msg" hidden></div>
 </main>
 
+<dialog id="modal">
+  <form method="dialog" id="modalForm">
+    <h1>Informe onde o gato está</h1>
+    <p id="modalMotivo"></p>
+    <label for="mUf">Estado:</label>
+    <select id="mUf"></select>
+    <label for="mCidade">Cidade:</label>
+    <select id="mCidade" disabled style="min-width:230px"></select>
+    <div class="btns"><button id="mOk" disabled>Confirmar</button><button type="button" id="mFechar">Agora não</button></div>
+  </form>
+</dialog>
+
 <div id="carrossel"></div>
 
-<script src="config.js?v=3"></script>
-<script src="gatos.js?v=3"></script>
+<script src="config.js?v=5"></script>
+<script src="gatos.js?v=5"></script>
 <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
 <script>
 const $ = id => document.getElementById(id);
@@ -80,7 +99,72 @@ $("foto").onchange = () => {
   if (f) { const u = URL.createObjectURL(f); p.style.backgroundImage = `url(${u})`; }
 };
 
-const CAMPOS = ["foto", "nome", "mes", "ano", "dia", "instagram", "aceite"];
+// ---------- estado e cidade (lista oficial do IBGE) ----------
+let CID = null; // { ufs: [[sigla, nome]], c: [[id, nome, índiceUF, lat, lon]] }
+function preencherUf(sel, vazio) {
+  sel.innerHTML = `<option value="">${vazio}</option>` + CID.ufs.map(([sigla, nome], i) => `<option value="${i}">${nome} (${sigla})</option>`).join("");
+}
+function preencherCidades(selUf, selCid) { // só cidades do estado escolhido
+  const i = selUf.value;
+  selCid.disabled = i === "";
+  selCid.innerHTML = i === "" ? '<option value="">Selecione o estado</option>'
+    : '<option value="">Selecione a cidade</option>' + CID.c.filter(c => c[2] === +i).map(c => `<option value="${c[0]}">${escHtml(c[1])}</option>`).join("");
+}
+function escolher(idCidade) { // preenche os campos do formulário a partir do código IBGE
+  const c = CID.c.find(x => x[0] === idCidade);
+  if (!c) return false;
+  $("uf").value = String(c[2]); preencherCidades($("uf"), $("cidade")); $("cidade").value = String(c[0]);
+  return true;
+}
+function maisProxima(lat, lon) { // haversine; as coordenadas ficam só neste aparelho
+  const R = 6371, rad = Math.PI / 180;
+  let melhor = null, dmin = Infinity;
+  for (const c of CID.c) {
+    const a = Math.sin((c[3] - lat) * rad / 2) ** 2 + Math.cos(lat * rad) * Math.cos(c[3] * rad) * Math.sin((c[4] - lon) * rad / 2) ** 2;
+    const d = 2 * R * Math.asin(Math.sqrt(a));
+    if (d < dmin) { dmin = d; melhor = c; }
+  }
+  return { cidade: melhor, km: dmin };
+}
+const DIST_MAX_KM = 300; // mais longe que isso: provavelmente fora do Brasil, pede para escolher
+let escolheuLocal = false;
+function abrirModal(motivo) {
+  escolheuLocal = false;
+  $("modalMotivo").textContent = motivo + " Informe o estado e a cidade onde o gato está.";
+  preencherUf($("mUf"), "Selecione o estado"); preencherCidades($("mUf"), $("mCidade")); $("mOk").disabled = true;
+  if (!$("modal").open) $("modal").showModal();
+}
+$("mUf").onchange = () => { preencherCidades($("mUf"), $("mCidade")); $("mOk").disabled = true; };
+$("mCidade").onchange = () => { $("mOk").disabled = !$("mCidade").value; };
+$("modalForm").onsubmit = () => {
+  escolheuLocal = true;
+  escolher(+$("mCidade").value); $("locInfo").textContent = "Estado e cidade informados por você."; renderCarrossel();
+};
+$("mFechar").onclick = () => $("modal").close();
+// clique fora da janela fecha (o <dialog> recebe o clique do fundo escuro; confere se foi fora da caixa)
+$("modal").addEventListener("click", e => {
+  const r = $("modal").getBoundingClientRect();
+  if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) $("modal").close();
+});
+// fechou sem informar a cidade (clique fora, Esc ou "Agora não"): mostra só os 10 últimos gatos cadastrados
+$("modal").addEventListener("close", () => { if (!escolheuLocal) renderCarrossel(10); });
+function localizar() {
+  $("locInfo").textContent = "Identificando a cidade mais próxima...";
+  if (!navigator.geolocation) return abrirModal("Seu navegador não permite identificar a localização.");
+  navigator.geolocation.getCurrentPosition(pos => {
+    const { cidade, km } = maisProxima(pos.coords.latitude, pos.coords.longitude);
+    if (km > DIST_MAX_KM) return abrirModal("Não encontramos uma cidade brasileira perto de você.");
+    escolher(cidade[0]);
+    $("locInfo").textContent = `Cidade mais próxima da sua localização: ${cidade[1]}/${CID.ufs[cidade[2]][0]}. Você pode alterar nos campos acima.`;
+  }, err => abrirModal(err.code === 1 ? "A permissão de localização foi negada." : "Não foi possível identificar a sua localização."),
+  { timeout: 10000, maximumAge: 600000 });
+}
+$("uf").onchange = () => preencherCidades($("uf"), $("cidade"));
+$("usarLoc").onclick = () => CID && localizar();
+fetch("cidades.json?v=1").then(r => r.json()).then(d => { CID = d; preencherUf($("uf"), "Selecione"); localizar(); })
+  .catch(() => { $("uf").innerHTML = '<option value="">Erro ao carregar a lista</option>'; aviso("Não foi possível carregar a lista de cidades. Recarregue a página.", false); });
+
+const CAMPOS = ["foto", "nome", "mes", "ano", "dia", "uf", "cidade", "instagram", "aceite"];
 function erroCampo(id, msg) { $(id).classList.add("invalido"); $(id).focus(); aviso(msg, false); return false; }
 function validar() {
   CAMPOS.forEach(c => $(c).classList.remove("invalido"));
@@ -96,6 +180,9 @@ function validar() {
     if (t.getMonth() !== mes - 1) return erroCampo("dia", "Esse dia não existe nesse mês.");
     if (t > hoje) return erroCampo("dia", "A data de nascimento não pode estar no futuro.");
   } else if (ano === ANO_MAX && mes > hoje.getMonth() + 1) return erroCampo("mes", "A data de nascimento não pode estar no futuro.");
+  if (!CID) return erroCampo("uf", "A lista de cidades ainda não carregou. Aguarde um instante e tente de novo.");
+  if ($("uf").value === "") return erroCampo("uf", "Selecione o estado.");
+  if (!$("cidade").value) return erroCampo("cidade", "Selecione a cidade (apenas cidades da lista).");
   const insta = $("instagram").value.trim();
   if (insta.includes("@")) return erroCampo("instagram", "Digite o Instagram sem o @ (ex.: gatinhos.do.bairro).");
   if (!normalizarInstagram(insta)) return erroCampo("instagram", "Instagram inválido. Use só letras, números, ponto e sublinhado (até 30), sem espaços, sem @ e sem link.");
@@ -120,7 +207,7 @@ $("form").onsubmit = async e => {
   const u = URL.createObjectURL(f);
   try {
     const foto = recortar(await carregar(u), 300, 400);
-    const r = await fetch(SINADIGA.api + "/gatos", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ nome, mes, ano, dia, instagram, aceite: true, foto, captcha }) });
+    const r = await fetch(SINADIGA.api + "/gatos", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ nome, mes, ano, dia, cidade: +$("cidade").value, instagram, aceite: true, foto, captcha }) });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) { aviso(j.erro || "Não foi possível enviar o cadastro.", false); }
     else { aviso(`${nome} foi enviado para aprovação. Assim que a administração aprovar, o gato aparece no painel de procurados.`, true); $("form").reset(); $("previa").hidden = true; }

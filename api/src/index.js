@@ -1,6 +1,8 @@
 // API do SINADIGA (Cloudflare Worker + D1). Regras de segurança ficam aqui, no servidor:
 // validação, captcha, limite por visitante e moderação (cadastro entra "pendente" até o admin aprovar).
 
+import { CIDADES } from "./cidades.js"; // municípios do IBGE (id -> [nome, UF]); só estes são aceitos
+
 const MAX_FOTO_B64 = 160_000;   // ~120 KB de JPEG
 const IDADE_MAX = 30;           // anos: nascimento mais antigo aceito (gatos raramente passam disso)
 const MAX_POR_HORA = 5;        // cadastros por visitante por hora
@@ -46,7 +48,7 @@ async function rota(req, env, url, cors) {
 
   // ---------- público ----------
   if (m === "GET" && p === "/gatos") {
-    const { results } = await env.DB.prepare("SELECT id, nome, mes, ano, dia, instagram FROM gatos WHERE status='aprovado' ORDER BY criado DESC LIMIT 200").all();
+    const { results } = await env.DB.prepare("SELECT id, nome, mes, ano, dia, cidade, uf, instagram FROM gatos WHERE status='aprovado' ORDER BY criado DESC LIMIT 200").all();
     return resp(results, 200, cors, { "cache-control": "public, max-age=60" });
   }
   if (m === "GET" && (r = p.match(/^\/gatos\/([\w-]{36})\/foto$/))) {
@@ -59,7 +61,7 @@ async function rota(req, env, url, cors) {
   if (p.startsWith("/admin/")) {
     if (!(await ehAdmin(req, env))) return resp({ erro: "Não autorizado." }, 401, cors);
     if (m === "GET" && p === "/admin/gatos") {
-      const { results } = await env.DB.prepare("SELECT id, nome, mes, ano, dia, instagram, status, criado FROM gatos ORDER BY status DESC, criado DESC LIMIT 500").all();
+      const { results } = await env.DB.prepare("SELECT id, nome, mes, ano, dia, cidade, uf, instagram, status, criado FROM gatos ORDER BY status DESC, criado DESC LIMIT 500").all();
       return resp(results, 200, cors, { "cache-control": "no-store" });
     }
     if (m === "GET" && (r = p.match(/^\/admin\/gatos\/([\w-]{36})\/foto$/))) {
@@ -102,6 +104,12 @@ async function cadastrar(req, env, cors) {
     if (t > agora) return resp({ erro: "A data não pode estar no futuro." }, 400, cors);
   } else if (ano === anoAtual && mes > agora.getUTCMonth() + 1) return resp({ erro: "A data não pode estar no futuro." }, 400, cors);
 
+  // cidade: o cliente manda o código IBGE; nome e UF vêm da nossa lista oficial (nada digitado pelo usuário é gravado)
+  const idCidade = Number(b.cidade);
+  const local = Number.isInteger(idCidade) ? CIDADES[idCidade] : undefined;
+  if (!local) return resp({ erro: "Cidade inválida. Escolha uma cidade da lista." }, 400, cors);
+  const [cidade, uf] = local;
+
   // instagram de contato (será exibido publicamente no botão "Quero adotar"); a pessoa precisa concordar
   const instagram = normalizarInstagram(b.instagram);
   if (!instagram) return resp({ erro: "Instagram inválido. Digite só o nome de usuário, sem o @ (ex.: gatinhos.do.bairro)." }, 400, cors);
@@ -132,7 +140,7 @@ async function cadastrar(req, env, cors) {
   const fila = await env.DB.prepare("SELECT COUNT(*) AS n FROM gatos WHERE status='pendente'").first();
   if (fila.n >= MAX_PENDENTES) return resp({ erro: "Fila de aprovação cheia. Tente mais tarde." }, 503, cors);
 
-  await env.DB.prepare("INSERT INTO gatos (id, nome, mes, ano, dia, instagram, foto, status, ip, criado) VALUES (?,?,?,?,?,?,?, 'pendente', ?, ?)")
-    .bind(crypto.randomUUID(), nome, mes, ano, dia, instagram, foto, ipHash, Date.now()).run();
+  await env.DB.prepare("INSERT INTO gatos (id, nome, mes, ano, dia, cidade, uf, instagram, foto, status, ip, criado) VALUES (?,?,?,?,?,?,?,?,?, 'pendente', ?, ?)")
+    .bind(crypto.randomUUID(), nome, mes, ano, dia, cidade, uf, instagram, foto, ipHash, Date.now()).run();
   return resp({ ok: true, mensagem: "Cadastro enviado para aprovação." }, 201, cors);
 }

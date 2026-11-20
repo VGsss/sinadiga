@@ -20,30 +20,34 @@ function normalizarInstagram(v) {
 }
 const escHtml = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
+const localTexto = g => g.cidade ? `${g.cidade}/${g.uf}` : "";
+
 function botaoAdotar(g) { // o link só é montado com um usuário que passou na validação
   const u = normalizarInstagram(g.instagram);
   return u ? `<a class="adotar" href="https://www.instagram.com/${u}/" target="_blank" rel="noopener noreferrer">Quero adotar</a>` : "";
 }
 
-async function renderCarrossel() {
+async function renderCarrossel(limite) { // limite: mostra só os N cadastros mais recentes (a API já devolve do mais novo ao mais antigo)
   const el = document.getElementById("carrossel");
   if (!el) return;
   el.className = "carrossel";
   const aqui = location.pathname.endsWith("cadastro.html");
   const vazio = txt => { el.innerHTML = `<h2>Gatos procurados para adoção</h2><p>${txt}</p>`; };
+  let titulo = "Gatos procurados para adoção";
   let gatos;
   try {
     const r = await fetch(SINADIGA.api + "/gatos");
     if (!r.ok) throw new Error(r.status);
     gatos = await r.json();
   } catch (e) { return vazio("Não foi possível carregar a lista de gatos agora. Tente novamente mais tarde."); }
+  if (limite) { gatos = gatos.slice(0, limite); titulo = gatos.length < limite ? "Últimos gatos cadastrados" : `Últimos ${limite} gatos cadastrados`; }
   if (!gatos.length) return vazio(`Nenhum gato aprovado ainda.${aqui ? "" : ' <a class="l" href="cadastro.html">Cadastre o primeiro</a>.'}`);
 
-  el.innerHTML = `<h2>Gatos procurados para adoção</h2><p>${gatos.length} ${gatos.length > 1 ? "gatos procuram" : "gato procura"} um lar. <a class="l" href="cadastro.html">Cadastrar gato</a></p>
+  el.innerHTML = `<h2>${titulo}</h2><p>${gatos.length} ${gatos.length > 1 ? "gatos procuram" : "gato procura"} um lar. <a class="l" href="cadastro.html">Cadastrar gato</a></p>
     <div class="car-wrap"><button class="car-btn prev" aria-label="Anterior">‹</button>
     <div class="trilho" tabindex="0">${gatos.map(g => `<div class="card-p"><div class="faixa">PROCURADO</div>
       <div class="poster"><img src="${SINADIGA.api}/gatos/${g.id}/foto" alt="Foto de ${escHtml(g.nome)}" loading="lazy"></div>
-      <p class="nome">${escHtml(g.nome)}</p><p class="data">Nascido em ${nascTexto(g)}</p><p class="data">Idade: ${idadeTexto(g)}</p>${botaoAdotar(g)}</div>`).join("")}</div>
+      <p class="nome">${escHtml(g.nome)}</p><p class="data">Nascido em ${nascTexto(g)}</p><p class="data">Idade: ${idadeTexto(g)}</p>${g.cidade ? `<p class="data">Local: ${escHtml(localTexto(g))}</p>` : ""}${botaoAdotar(g)}</div>`).join("")}</div>
     <button class="car-btn next" aria-label="Próximo">›</button></div>`;
   const t = el.querySelector(".trilho"), passo = () => t.querySelector(".card-p").offsetWidth + 20;
   const prox = () => t.scrollLeft + t.clientWidth >= t.scrollWidth - 20 ? t.scrollTo({ left: 0 }) : t.scrollBy({ left: passo() });
