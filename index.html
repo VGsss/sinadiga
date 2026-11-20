@@ -1,0 +1,409 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SINADIGA - Atestado de Antecedentes Felinos</title>
+<style>
+  /* Visual de portal governamental dos anos 2000: Verdana pequena, texto justificado, botões 3D cinza */
+  body { margin:0; background:#fff; color:#555; font:11px/1.45 Verdana, Arial, sans-serif; }
+  #topo { border-bottom:1px solid #ccc; padding:6px 12px; font-size:10px; color:#333; background:#f4f4f4; }
+  #topo b { color:#1a3d6d; font-size:12px; }
+  nav { display:flex; flex-wrap:wrap; gap:0 70px; padding:8px 35px; }
+  nav a { color:#444; text-decoration:none; font-size:10px; display:flex; align-items:center; gap:6px; cursor:pointer; }
+  nav a::before { content:""; width:11px; height:8px; background:#bbb; border-radius:1px 1px 0 0; box-shadow:0 1px 0 #888; }
+  nav a.on::before { background:#c00; box-shadow:0 1px 0 #800; }
+  nav a.off { pointer-events:none; opacity:.55; }
+  nav a.fale { color:#c00; text-decoration:underline; }
+  nav a.fale::before { background:none; box-shadow:none; content:"✉"; font-size:10px; width:auto; height:auto; }
+  main { max-width:680px; margin:24px auto 40px; padding:0 16px; }
+  .etapa[hidden] { display:none; }
+  h1 { font-size:11px; margin:0 0 20px; color:#555; }
+  p { text-align:justify; margin:0 0 13px; }
+  a.l { color:#006699; text-decoration:none; }
+  .btns { margin-top:14px; display:flex; gap:24px; flex-wrap:wrap; }
+  button { font:11px Verdana, Arial, sans-serif; color:#222; background:#efefef; border:2px outset #fff; padding:3px 7px; cursor:pointer; }
+  button:active { border-style:inset; }
+  label { display:block; margin:10px 0 3px; font-weight:bold; }
+  input[type=text], input[type=file] { font:11px Verdana, Arial, sans-serif; border:2px inset #ddd; padding:3px; width:100%; max-width:380px; background:#fff; }
+  table { border-collapse:collapse; width:100%; margin:8px 0 14px; }
+  th, td { border:1px solid #bbb; padding:4px 6px; text-align:left; vertical-align:top; }
+  th { background:#e8edf3; color:#1a3d6d; }
+  .foto { width:150px; height:200px; margin:0 auto 6px; border:1px solid #888; background:#ddd; display:grid; place-items:center; font-size:60px; position:relative; overflow:hidden; }
+  .foto img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; filter:grayscale(1) contrast(1.1); }
+  #nomeOut { text-align:center; font-size:14px; font-weight:bold; text-transform:uppercase; color:#333; margin:0 0 12px; word-break:break-word; }
+  .carimbo { display:inline-block; border:3px double #c00; color:#c00; padding:3px 12px; font-weight:bold; font-size:14px; transform:rotate(-3deg); margin:6px 0 12px; }
+  .desc { color:#777; font-size:10px; }
+  .box { border:1px solid #bbb; background:#fffbe0; padding:6px 8px; margin:12px 0; }
+  .c { text-align:center; }
+  @media print { #topo, nav, .btns { display:none } }
+  @media (max-width:560px) { nav { gap:6px 24px; padding:8px 12px } }
+</style>
+</head>
+<body>
+
+<div id="topo"><b>SINADIGA</b> &nbsp;|&nbsp; Sistema Nacional de Distribuição de Gatos &nbsp;|&nbsp; Instituto de Identificação Felina</div>
+
+<nav>
+  <a data-s="1" class="on">Apresentação do Serviço</a>
+  <a data-s="2">Pesquisa de RGF</a>
+  <a data-s="3" class="off">Resultado da Pesquisa</a>
+  <a class="fale" id="fale">fale conosco</a>
+</nav>
+
+<main>
+  <!-- ETAPA 1 -->
+  <section class="etapa" id="e1">
+    <h1>Apresentação do Serviço</h1>
+    <p>O Atestado de Antecedentes Felinos é um documento fornecido pelo Instituto de Identificação Felina Whiskas Daunt (IIFWD), órgão do Sistema Nacional de Distribuição de Gatos (SINADIGA), que tem por objetivo informar, no exato momento da sua emissão, a existência ou não de pendências jurídico-felinas relativas ao requerente nos registros informatizados do Instituto.</p>
+    <p>O Atestado de Antecedentes Felinos apresenta a ficha completa do indivíduo, incluindo fotografia 3x4, nome e todas as ocorrências registradas por cochilos suspeitos, derrubada de objetos e miados fora do horário permitido.</p>
+    <p>Para utilização desse serviço você deverá informar o nome do gato e, se possível, uma fotografia em que ele aparente inocência. Nenhum gato jamais foi condenado com base em uma foto em que parecia culpado.</p>
+    <p>Gatos de outras espécies (cães, hamsters, papagaios) devem ser atendidos pessoalmente nos Postos do Poupa-Petisco, tendo o documento em mãos (patas).</p>
+    <p><b>IMPORTANTE: O não fornecimento imediato do Atestado de Antecedentes Felinos não significa que o requerente esteja com pendências jurídico-criminais. Significa que ele está debaixo da cama e se recusa a sair.</b></p>
+    <div class="btns">
+      <button id="solicitar">Solicitar Atestado</button>
+      <button id="validar">Validar Atestado</button>
+    </div>
+    <div class="box c" id="msgValidar" hidden></div>
+  </section>
+
+  <!-- ETAPA 2 -->
+  <section class="etapa" id="e2" hidden>
+    <h1>Pesquisa de RGF</h1>
+    <p>Informe os dados do felino a ser pesquisado nos registros do Instituto. O RGF (Registro Geral Felino) será gerado automaticamente pelo sistema, pois nenhum gato nunca soube dizer o próprio número.</p>
+    <form id="form">
+      <label for="nome">Nome do gato (vulgo):</label>
+      <input type="text" id="nome" maxlength="40" required>
+      <label for="foto">Fotografia do requerente (opcional):</label>
+      <input type="file" id="foto" accept="image/*">
+      <p class="desc" style="margin-top:4px">A fotografia é exibida apenas neste navegador e não é enviada a nenhum servidor.</p>
+      <div class="btns"><button>Pesquisar</button><button type="button" data-s="1">Voltar</button></div>
+    </form>
+  </section>
+
+  <!-- ETAPA 3 -->
+  <section class="etapa" id="e3" hidden>
+    <h1>Resultado da Pesquisa</h1>
+    <div class="box c" id="viaQR" hidden>Atestado aberto a partir do QR Code. A fotografia foi reduzida para caber no código.</div>
+    <div class="foto"><span id="emoji">🐱</span><img id="img" alt="" hidden></div>
+    <div id="nomeOut"></div>
+
+    <table>
+      <tr><th width="30%">RGF</th><td id="rgf"></td></tr>
+      <tr><th>Processo nº</th><td id="proc"></td></tr>
+      <tr><th>Data da emissão</th><td id="data"></td></tr>
+      <tr><th>Situação</th><td id="situ"></td></tr>
+      <tr><th>Vidas restantes</th><td id="vidas"></td></tr>
+    </table>
+
+    <p id="resumo"></p>
+    <table>
+      <thead><tr><th>Nº</th><th>Ocorrência</th><th>Enquadramento</th><th>Pena</th></tr></thead>
+      <tbody id="lista"></tbody>
+    </table>
+
+    <div class="c"><span class="carimbo" id="pena"></span></div>
+    <p class="desc">Documento sem valor jurídico, mas com enorme valor sentimental. Obra de ficção: nenhum gato foi preso nesta operação.</p>
+    <div class="btns"><button id="outra">Nova Consulta (mesmo gato)</button><button data-s="2">Nova Pesquisa</button><button id="baixar">Baixar Atestado em PDF</button></div>
+  </section>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<script>
+// [crime, enquadramento (de brincadeira), descrição — $ = nome do gato]
+const CRIMES = [
+  ["Peculato", "Art. 312 do CP", "Desviou petiscos destinados ao patrimônio público (a tigela do outro gato)."],
+  ["Sonegação fiscal", "Lei 8.137/90", "Escondeu 14 bolinhas de pelo da Receita Federal e nunca pagou o imposto de ronronar."],
+  ["Atentado ao pudor", "Art. 233 do CP", "$ lambeu-se nas partes íntimas no meio da sala, diante da visita e da sogra."],
+  ["Preconceito religioso", "Lei 7.716/89", "Perseguiu o gato de terreiro vizinho alegando que a sua fé era a única verdadeira: a Ração Premium."],
+  ["Vandalismo", "Art. 163 do CP", "Destruiu o sofá novo, 3 cortinas e o futuro emocional do dono."],
+  ["Peculato qualificado", "Art. 312, §1º", "Subtraiu uma sardinha da geladeira valendo-se da facilidade que o cargo de 'fofinho' lhe proporciona."],
+  ["Furto qualificado", "Art. 155, §4º", "Furtou o frango do almoço por rompimento de obstáculo (a porta da cozinha entreaberta)."],
+  ["Roubo majorado", "Art. 157 do CP", "Assaltou o dedão do pé de transeunte noturno, de surpresa, atrás do móvel."],
+  ["Estelionato", "Art. 171 do CP", "Fingiu que não comia há 3 dias para ganhar o quarto prato do dia."],
+  ["Falsidade ideológica", "Art. 299 do CP", "Declarou ser 'um gato de rua carente' tendo cama própria, caixa de areia e plano de saúde."],
+  ["Receptação", "Art. 180 do CP", "Foi flagrado com 11 elásticos de cabelo, 2 meias e uma tampinha de origem desconhecida."],
+  ["Associação criminosa", "Art. 288 do CP", "Comandava quadrilha de 4 gatos que miava coordenado às 4h da manhã."],
+  ["Lavagem de dinheiro", "Lei 9.613/98", "Escondeu moedas debaixo do tapete e as fez circular pelo chão da casa."],
+  ["Corrupção passiva", "Art. 317 do CP", "Aceitou carinho na barriga em troca de deixar o dono dormir."],
+  ["Tráfico de influência", "Art. 332 do CP", "Alegou ter contatos no setor de petiscos e cobrou pedágio de todos os humanos da casa."],
+  ["Desacato a autoridade", "Art. 331 do CP", "Olhou fixamente para o dono, derrubou o copo da mesa e saiu andando."],
+  ["Desobediência", "Art. 330 do CP", "Ignorou 47 vezes a ordem 'sai daí!' sem qualquer remorso."],
+  ["Invasão de domicílio", "Art. 150 do CP", "Entrou na casa da vizinha pela janela e se deitou no melhor sofá."],
+  ["Ameaça", "Art. 147 do CP", "Prometeu pelo olhar que mataria o cachorro assim que ficasse dono da casa."],
+  ["Perturbação do sossego", "Art. 42 da LCP", "Corrida de madrugada, com trilha sonora de miados e jogo de panelas."],
+  ["Ato obsceno", "Art. 233 do CP", "Exibiu o bumbum ao convidado do jantar, com o rabo erguido bem na cara dele."],
+  ["Cárcere privado", "Art. 148 do CP", "Deitou no colo do dono e o manteve imóvel por 3 horas, com a bexiga estourando."],
+  ["Contrabando", "Art. 334-A do CP", "Importou 1 camundongo sem nota fiscal e o escondeu embaixo da cama."],
+  ["Jogo do bicho", "Art. 58 da LCP", "Explorou aposta clandestina sobre qual passarinho iria pousar na janela."],
+  ["Injúria", "Art. 140 do CP", "Chamou o cachorro de 'bicho feio' em miadês claro e audível."],
+  ["Difamação", "Art. 139 do CP", "Espalhou pela vizinhança que o dono come ração às escondidas."],
+  ["Dano ao patrimônio público", "Art. 163, III", "Derrubou o vaso do prédio e foi flagrado lambendo a evidência."],
+  ["Dirigir sem habilitação", "Art. 309 do CTB", "Foi visto pilotando um aspirador robô em velocidade incompatível com a via."],
+  ["Abuso de autoridade", "Lei 13.869/19", "Acordou o dono às 5h em ponto, deu patada no rosto e exigiu ração à base de ameaça."],
+  ["Apropriação indébita", "Art. 168 do CP", "Pegou emprestado o cantinho do dono na cama e jamais devolveu."],
+  ["Fraude em licitação", "Lei 14.133/21", "Combinou com outro gato quem ficaria com o melhor lugar ao sol."],
+  ["Crime ambiental", "Lei 9.605/98", "Abateu 2 pombos, 1 lagartixa e o equilíbrio ecológico do quintal."],
+  ["Maus-tratos ao dono", "Art. 136 do CP", "Submeteu o dono a condições degradantes: arranhões, pelo no prato e silêncio de desprezo."],
+];
+const STATUS = ["FORAGIDO", "SOLTO POR FALTA DE PROVAS (E DE VERGONHA)", "LIBERDADE PROVISÓRIA (NO SOFÁ)", "REINCIDENTE", "ALTAMENTE PERICULOSO (FOFO)"];
+// ponytail: troque pela URL pública do site depois de hospedar; o QR Code do PDF aponta para ela.
+const SITE_URL = location.href.split("#")[0];
+const TW = 30, TH = 40; // miniatura que viaja dentro do QR Code (4 bits por pixel = 600 bytes)
+const $ = id => document.getElementById(id);
+const rnd = n => Math.floor(Math.random() * n);
+const esc = s => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const b64 = s => btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+const unb64 = s => atob(s.replace(/-/g, "+").replace(/_/g, "/"));
+let F; // ficha atual: {n,r,p,t,s,v,c:[[idxCrime,pena]], photo(dataURL), g(miniatura base64url)}
+
+function go(n) {
+  document.querySelectorAll(".etapa").forEach(e => e.hidden = e.id !== "e" + n);
+  document.querySelectorAll("nav a[data-s]").forEach(a => a.classList.toggle("on", a.dataset.s == n));
+  if (n == 3) document.querySelector('nav a[data-s="3"]').classList.remove("off");
+  scrollTo(0, 0);
+}
+
+// recorta (cover) para w x h em tons de cinza
+function cinza(src, w, h) {
+  const c = document.createElement("canvas"); c.width = w; c.height = h;
+  const x = c.getContext("2d"); x.imageSmoothingQuality = "high";
+  const s = Math.max(w / src.width, h / src.height), dw = src.width * s, dh = src.height * s;
+  x.drawImage(src, (w - dw) / 2, (h - dh) / 2, dw, dh);
+  const id = x.getImageData(0, 0, w, h), p = id.data;
+  for (let i = 0; i < p.length; i += 4) p[i] = p[i + 1] = p[i + 2] = .3 * p[i] + .59 * p[i + 1] + .11 * p[i + 2];
+  x.putImageData(id, 0, 0);
+  return c;
+}
+const carregar = url => new Promise((ok, erro) => { const i = new Image(); i.onload = () => ok(i); i.onerror = erro; i.src = url; });
+
+function miniatura(canvas) { // canvas cinza -> base64url de 4 bits/pixel, com contraste normalizado
+  const c = cinza(canvas, TW, TH), p = c.getContext("2d").getImageData(0, 0, TW, TH).data;
+  let lo = 255, hi = 0;
+  for (let i = 0; i < p.length; i += 4) { lo = Math.min(lo, p[i]); hi = Math.max(hi, p[i]); }
+  const q = i => Math.round((p[i * 4] - lo) / Math.max(hi - lo, 1) * 15);
+  let s = "";
+  for (let i = 0; i < TW * TH; i += 2) s += String.fromCharCode(q(i) << 4 | q(i + 1));
+  return b64(s);
+}
+function deMiniatura(g) { // base64url -> dataURL ampliada (suavizada)
+  const s = unb64(g), c = document.createElement("canvas"); c.width = TW; c.height = TH;
+  const x = c.getContext("2d"), id = x.createImageData(TW, TH);
+  for (let i = 0; i < TW * TH; i++) {
+    const b = s.charCodeAt(i >> 1), v = (i % 2 ? b & 15 : b >> 4) * 17;
+    id.data.set([v, v, v, 255], i * 4);
+  }
+  x.putImageData(id, 0, 0);
+  const o = document.createElement("canvas"); o.width = TW * 8; o.height = TH * 8;
+  const y = o.getContext("2d"); y.imageSmoothingQuality = "high"; y.drawImage(c, 0, 0, o.width, o.height);
+  return o.toDataURL("image/jpeg", .9);
+}
+
+// dados -> link do QR Code: SITE#f=<json base64url>.<miniatura base64url>
+function link(f) {
+  const j = JSON.stringify({ n: f.n, r: f.r, p: f.p, t: f.t, s: f.s, v: f.v, c: f.c });
+  return SITE_URL + "#f=" + b64(String.fromCharCode(...new TextEncoder().encode(j))) + (f.g ? "." + f.g : "");
+}
+function ler(hash) {
+  const [j, g] = hash.slice(3).split(".");
+  const f = JSON.parse(new TextDecoder().decode(Uint8Array.from(unb64(j), ch => ch.charCodeAt(0))));
+  if (g) { f.g = g; f.photo = deMiniatura(g); }
+  return f;
+}
+
+async function gerar() {
+  const nome = $("nome").value.trim();
+  if (!nome) return;
+  const f = $("foto").files[0];
+  const F2 = {
+    n: nome,
+    r: Array.from({ length: 3 }, () => String(100 + rnd(900))).join(".") + "-" + rnd(10) + "M",
+    p: (1000 + rnd(9000)) + "/" + new Date().getFullYear(),
+    t: Math.floor(Date.now() / 1000),
+    s: rnd(STATUS.length), v: 1 + rnd(7),
+    c: CRIMES.map((_, i) => [Math.random(), i]).sort((a, b) => a[0] - b[0]).slice(0, 5 + rnd(6)).map(x => [x[1], 1 + rnd(12)]),
+  };
+  if (f) {
+    const u = URL.createObjectURL(f);
+    try {
+      const img = await carregar(u), grande = cinza(img, 300, 400);
+      F2.photo = grande.toDataURL("image/jpeg", .85);
+      F2.g = miniatura(grande);
+    } finally { URL.revokeObjectURL(u); }
+  }
+  F = F2;
+  mostrar();
+}
+
+function mostrar() {
+  const N = esc(F.n), d = new Date(F.t * 1000);
+  $("nomeOut").textContent = F.n;
+  $("proc").textContent = F.p;
+  $("data").textContent = d.toLocaleDateString("pt-BR");
+  $("rgf").textContent = F.r;
+  $("situ").textContent = STATUS[F.s];
+  $("vidas").textContent = F.v + " de 9";
+  $("img").hidden = !F.photo;
+  if (F.photo) $("img").src = F.photo;
+  $("emoji").hidden = !!F.photo;
+  let anos = 0;
+  $("resumo").innerHTML = `Foram encontradas <b>${F.c.length} ocorrências</b> em nome do requerente <b>${N}</b>, conforme relação abaixo:`;
+  $("lista").innerHTML = F.c.map(([k, p], i) => {
+    const [c, art, desc] = CRIMES[k]; anos += p;
+    return `<tr><td>${i + 1}</td><td><b>${c}</b><br><span class="desc">${desc.replace(/\$/g, N)}</span></td><td>${art}</td><td>${p} ano${p > 1 ? "s" : ""}</td></tr>`;
+  }).join("");
+  F.anos = anos;
+  $("pena").textContent = `PENA TOTAL: ${anos} ANOS (regime semiaberto, no sofá)`;
+  go(3);
+}
+
+// ---------- PDF: layout do atestado + dados da ficha + QR Code funcional ----------
+function brasao(d, x, y, r, tipo) {
+  d.setDrawColor(40); d.setLineWidth(.5);
+  if (tipo) { // escudo com patinha
+    d.setFillColor(26, 61, 109); d.roundedRect(x - r, y - r, 2 * r, 2.2 * r, 3, 3, "FD");
+    d.setFillColor(255, 255, 255);
+    d.circle(x, y + r * .35, r * .38, "F");
+    [[-.55, -.25], [-.2, -.6], [.2, -.6], [.55, -.25]].forEach(([a, b]) => d.circle(x + a * r, y + b * r + r * .35, r * .17, "F"));
+  } else { // medalhão com cara de gato
+    d.setFillColor(201, 162, 39); d.circle(x, y, r, "FD");
+    d.setFillColor(60, 45, 10); d.circle(x, y + r * .1, r * .6, "F");
+    d.triangle(x - r * .6, y - r * .1, x - r * .5, y - r * .75, x - r * .1, y - r * .45, "F");
+    d.triangle(x + r * .6, y - r * .1, x + r * .5, y - r * .75, x + r * .1, y - r * .45, "F");
+    d.setFillColor(201, 162, 39);
+    d.circle(x - r * .25, y, r * .12, "F"); d.circle(x + r * .25, y, r * .12, "F");
+  }
+}
+
+// ponytail: a lib gera um QR ilegível na versão 23 (testado com zxing e jsQR); usa só versões que os dois leram.
+function criarQR(texto) {
+  for (const v of [10, 12, 13, 15, 16, 18, 20, 22, 24, 28]) {
+    try { const q = qrcode(v, "L"); q.addData(texto); q.make(); return q; } catch (e) { /* não coube: tenta a próxima versão */ }
+  }
+  throw new Error("dados grandes demais para o QR Code");
+}
+
+async function baixarPDF() {
+  const { jsPDF } = window.jspdf;
+  const d = new jsPDF({ unit: "mm", format: "a4", compress: true });
+  const W = 210, M = 15, CW = W - 2 * M, nl = (t, w) => d.splitTextToSize(t, w);
+  d.setLineWidth(.35); d.setDrawColor(0); d.setTextColor(0);
+  const dt = new Date(F.t * 1000), data = dt.toLocaleDateString("pt-BR"), hora = dt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  const codigo = "SNDG-" + F.p.replace("/", "-") + "-" + F.r.replace(/\D/g, "") + "M";
+
+  // cabeçalho
+  brasao(d, M + 10, 21, 8, 0); brasao(d, W - M - 10, 21, 8, 1);
+  d.setFont("helvetica", "normal"); d.setFontSize(10);
+  d.text("Sistema Nacional de Distribuição de Gatos", W / 2, 15, { align: "center" });
+  d.text("SINADIGA - Instituto de Identificação Felina Whiskas Daunt", W / 2, 20, { align: "center" });
+  d.setFont("helvetica", "bold"); d.setFontSize(13);
+  d.text("Atestado de Antecedentes Felinos", W / 2, 29, { align: "center" });
+
+  // quadro 1: qualificação + foto + QR
+  let y = 38; const h1 = 64;
+  d.rect(M, y, CW, h1);
+  const fx = M + 5, fy = y + 5;
+  if (F.photo) d.addImage(F.photo, "JPEG", fx, fy, 30, 40);
+  else { d.setFillColor(225); d.rect(fx, fy, 30, 40, "F"); d.setFont("helvetica", "normal"); d.setFontSize(7); d.text("SEM FOTO", fx + 15, fy + 20, { align: "center" }); }
+  d.rect(fx, fy, 30, 40);
+  d.setFont("helvetica", "bold"); d.setFontSize(9);
+  d.text(nl(F.n.toUpperCase(), 36).slice(0, 2), fx + 15, fy + 45, { align: "center" });
+
+  const LX = M + 42, VX = M + 77, VW = 44; let ly = y + 9;
+  const linha = (k, v) => {
+    d.setFont("helvetica", "bold"); d.setFontSize(8); d.text(k, LX, ly);
+    d.setFont("helvetica", "normal"); const t = nl(v, VW); d.text(t, VX, ly); ly += t.length * 3.6 + 3;
+  };
+  linha("Documento Informado:", "RGF");
+  linha("Nome:", F.n);
+  linha("Nº RGF:", F.r);
+  linha("Processo nº:", F.p);
+  linha("Situação:", STATUS[F.s]);
+  linha("Vidas restantes:", F.v + " de 9");
+  linha("Data da emissão:", data);
+
+  const qr = criarQR(link(F));
+  const n = qr.getModuleCount(), Q = 48, m = Q / n, qx = W - M - 5 - Q, qy = y + 6;
+  d.setFillColor(0);
+  for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) {
+    if (!qr.isDark(r, c)) continue;
+    let e = c; while (e + 1 < n && qr.isDark(r, e + 1)) e++; // junta módulos vizinhos numa linha
+    d.rect(qx + c * m, qy + r * m, (e - c + 1) * m + .02, m + .02, "F"); c = e;
+  }
+  d.setFont("helvetica", "normal"); d.setFontSize(6.5);
+  d.text("Leia com a câmera do celular", qx + Q / 2, qy + Q + 6, { align: "center" });
+
+  // quadro 2: atestado + assinatura
+  y += h1 + 8; const h2 = 40;
+  d.rect(M, y, CW, h2);
+  d.setFontSize(8); d.setFont("helvetica", "normal");
+  d.text(nl(`Atesto que, para a combinação de dados de qualificação acima informada, EXISTEM ${F.c.length} registros de antecedentes jurídico-felinos, até a presente data, no Instituto de Identificação Felina Whiskas Daunt, totalizando ${F.anos} anos de pena a cumprir no sofá.`, CW - 10), M + 5, y + 7);
+  d.setFont("helvetica", "bold"); d.text("IMPORTANTE:", M + 5, y + 20);
+  d.text(nl("Este atestado é válido somente com a apresentação do gato em questão ou, na sua ausência, de uma lata de atum aberta.", 110), M + 5, y + 25);
+  d.setDrawColor(20, 30, 120); d.setLineWidth(.4); // assinatura rabiscada
+  d.lines([[3, -6, 6, -6, 8, 0], [2, 5, 5, 4, 7, -4], [3, -8, 6, -2, 8, 3], [4, 4, 8, -3, 13, -1]], W - M - 62, y + 28);
+  d.setDrawColor(0); d.setLineWidth(.35); d.setFont("helvetica", "normal"); d.setFontSize(6.5);
+  d.text(["Dr. Bigodes de Almeida", "Delegado de Polícia Felina"], W - M - 43, y + 34, { align: "center" });
+
+  // relação de ocorrências
+  y += h2 + 8;
+  const cols = [8, 104, 38, 30], xs = [M]; cols.forEach((w, i) => xs.push(xs[i] + w));
+  const cab = () => {
+    d.setFillColor(232, 237, 243); d.rect(M, y, CW, 6, "FD"); d.setFont("helvetica", "bold"); d.setFontSize(8);
+    ["Nº", "Ocorrência", "Enquadramento", "Pena"].forEach((t, i) => d.text(t, xs[i] + 2, y + 4.2));
+    y += 6;
+  };
+  d.setFont("helvetica", "bold"); d.setFontSize(9); d.text("Relação de ocorrências", M, y - 2);
+  cab();
+  F.c.forEach(([k, p], i) => {
+    const [c, art, desc] = CRIMES[k], t = nl(desc.replace(/\$/g, F.n), cols[1] - 4), h = 7 + t.length * 3.5;
+    if (y + h > 280) { d.addPage(); y = 20; cab(); }
+    d.setFillColor(255); d.rect(M, y, CW, h);
+    xs.slice(1, -1).forEach(x => d.line(x, y, x, y + h));
+    d.setFont("helvetica", "normal"); d.setFontSize(8);
+    d.text(String(i + 1), xs[0] + 2, y + 4.2);
+    d.text(art, xs[2] + 2, y + 4.2); d.text(p + (p > 1 ? " anos" : " ano"), xs[3] + 2, y + 4.2);
+    d.setFont("helvetica", "bold"); d.text(c, xs[1] + 2, y + 4.2);
+    d.setFont("helvetica", "normal"); d.setFontSize(7); d.setTextColor(90); d.text(t, xs[1] + 2, y + 8.2); d.setTextColor(0);
+    y += h;
+  });
+  y += 4;
+  if (y + 40 > 285) { d.addPage(); y = 20; }
+  d.setDrawColor(190, 20, 20); d.setTextColor(190, 20, 20); d.setLineWidth(.8);
+  d.rect(M + 40, y, CW - 80, 10); d.setLineWidth(.3); d.rect(M + 41, y + 1, CW - 82, 8);
+  d.setFont("helvetica", "bold"); d.setFontSize(10);
+  d.text(`PENA TOTAL: ${F.anos} ANOS (regime semiaberto, no sofá)`, W / 2, y + 6.5, { align: "center" });
+  d.setDrawColor(0); d.setTextColor(0); d.setLineWidth(.35);
+
+  // quadro 3: emissão e validação
+  y += 16;
+  d.rect(M, y, CW, 26);
+  d.setFont("helvetica", "normal"); d.setFontSize(8);
+  d.text(nl(`Este atestado foi emitido em ${data}, às ${hora} horas e está disponível para consulta no endereço da internet abaixo. Para abrir o atestado completo (dados e fotografia), leia o QR Code com a câmera do celular.`, CW - 10), M + 5, y + 6);
+  d.setFont("helvetica", "bold"); d.setTextColor(0, 80, 140); d.text(SITE_URL, M + 5, y + 16);
+  d.setTextColor(0); d.text("Código: " + codigo, M + 5, y + 22);
+  d.setFont("helvetica", "normal"); d.setFontSize(6); d.setTextColor(120);
+  d.text("Documento fictício e humorístico. Nenhum gato foi preso nesta operação.", W / 2, 291, { align: "center" });
+  d.save("atestado-" + F.n.toLowerCase().replace(/[^a-z0-9]+/g, "-") + ".pdf");
+}
+
+document.querySelectorAll("[data-s]").forEach(a => a.onclick = () => go(a.dataset.s));
+$("solicitar").onclick = () => go(2);
+$("validar").onclick = () => {
+  const m = $("msgValidar");
+  m.hidden = false;
+  m.textContent = "Atestado inválido: o documento foi encontrado, porém o gato dormiu em cima dele.";
+};
+$("fale").onclick = () => alert("Seu miado foi registrado sob o protocolo " + (10000 + rnd(90000)) + ". Prazo de resposta: 90 dias úteis ou até a hora da ração, o que ocorrer primeiro.");
+$("form").onsubmit = e => { e.preventDefault(); gerar(); };
+$("outra").onclick = gerar;
+$("baixar").onclick = baixarPDF;
+
+// aberto pelo QR Code: reconstrói a ficha a partir do link
+if (location.hash.startsWith("#f=")) {
+  try { F = ler(location.hash); mostrar(); $("viaQR").hidden = false; $("outra").hidden = true; } catch (e) { console.error(e); }
+}
+</script>
+</body>
+</html>
