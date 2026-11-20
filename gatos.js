@@ -13,11 +13,9 @@ function idadeTexto(g) {
   const p = [an && an + (an > 1 ? " anos" : " ano"), me && me + (me > 1 ? " meses" : " mês")].filter(Boolean);
   return p.length ? p.join(" e ") : "recém-nascido";
 }
-// Aceita "@usuario", "usuario" ou "instagram.com/usuario"; devolve só o usuário válido (minúsculo) ou null. Mesma regra da API.
+// Aceita SÓ o nome de usuário, sem "@" nem link; devolve o usuário em minúsculo ou null. Mesma regra da API.
 function normalizarInstagram(v) {
-  const s = String(v ?? "").trim()
-    .replace(/^https?:\/\/(www\.)?instagram\.com\//i, "").replace(/^instagram\.com\//i, "")
-    .replace(/^@/, "").replace(/[/?#].*$/, "");
+  const s = String(v ?? "").trim();
   return /^(?!\.)(?!.*\.\.)(?!.*\.$)[A-Za-z0-9._]{1,30}$/.test(s) ? s.toLowerCase() : null;
 }
 const escHtml = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));

@@ -60,3 +60,5 @@
   .adotar:hover { background:#142a4e; }
   .aceite { display:flex; gap:6px; align-items:flex-start; margin-top:10px; font-weight:normal; }
   .aceite input { margin-top:2px; }
+  input.invalido, select.invalido { border-color:#c33 !important; background:#fff5f5; }
+  .dica { color:#a22; font-size:10px; min-height:12px; }

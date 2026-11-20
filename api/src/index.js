@@ -2,7 +2,8 @@
 // validação, captcha, limite por visitante e moderação (cadastro entra "pendente" até o admin aprovar).
 
 const MAX_FOTO_B64 = 160_000;   // ~120 KB de JPEG
-const MAX_POR_HORA = 5;         // cadastros por visitante por hora
+const IDADE_MAX = 30;           // anos: nascimento mais antigo aceito (gatos raramente passam disso)
+const MAX_POR_HORA = 5;        // cadastros por visitante por hora
 const MAX_PENDENTES = 100;      // fila de moderação cheia = recusa novos cadastros
 
 const resp = (corpo, status, cors, extra = {}) =>
@@ -77,13 +78,11 @@ async function rota(req, env, url, cors) {
   return resp({ erro: "Não encontrado." }, 404, cors);
 }
 
-// Aceita "@usuario", "usuario" ou "instagram.com/usuario"; devolve só o nome de usuário válido (minúsculo) ou null.
-// Regras do Instagram: 1 a 30 caracteres entre letras, números, ponto e sublinhado; sem ".." nem ponto no fim.
+// Aceita SÓ o nome de usuário, sem "@" nem link; devolve o usuário em minúsculo ou null.
+// Regras do Instagram: 1 a 30 caracteres entre letras, números, ponto e sublinhado; sem ".." nem ponto no começo/fim.
 // ponytail: só valida o formato, não confirma se a conta existe.
 function normalizarInstagram(v) {
-  const s = String(v ?? "").trim()
-    .replace(/^https?:\/\/(www\.)?instagram\.com\//i, "").replace(/^instagram\.com\//i, "")
-    .replace(/^@/, "").replace(/[/?#].*$/, "");
+  const s = String(v ?? "").trim();
   return /^(?!\.)(?!.*\.\.)(?!.*\.$)[A-Za-z0-9._]{1,30}$/.test(s) ? s.toLowerCase() : null;
 }
 
@@ -95,8 +94,8 @@ async function cadastrar(req, env, cors) {
   const mes = Number(b.mes), ano = Number(b.ano), dia = b.dia ? Number(b.dia) : null;
   const agora = new Date(), anoAtual = agora.getUTCFullYear();
   if (!nome || nome.length > 40) return resp({ erro: "Nome inválido (1 a 40 caracteres)." }, 400, cors);
-  if (!Number.isInteger(mes) || mes < 1 || mes > 12) return resp({ erro: "Mês inválido." }, 400, cors);
-  if (!Number.isInteger(ano) || ano < 1990 || ano > anoAtual) return resp({ erro: "Ano inválido." }, 400, cors);
+  if (!Number.isInteger(mes) || mes < 1 || mes > 12) return resp({ erro: "Mês inválido. Escolha de janeiro a dezembro." }, 400, cors);
+  if (!Number.isInteger(ano) || ano < anoAtual - IDADE_MAX || ano > anoAtual) return resp({ erro: `Ano inválido. Informe um ano entre ${anoAtual - IDADE_MAX} e ${anoAtual}.` }, 400, cors);
   if (dia !== null) {
     const t = new Date(Date.UTC(ano, mes - 1, dia));
     if (!Number.isInteger(dia) || t.getUTCMonth() !== mes - 1) return resp({ erro: "O dia não existe nesse mês." }, 400, cors);
@@ -105,7 +104,7 @@ async function cadastrar(req, env, cors) {
 
   // instagram de contato (será exibido publicamente no botão "Quero adotar"); a pessoa precisa concordar
   const instagram = normalizarInstagram(b.instagram);
-  if (!instagram) return resp({ erro: "Instagram inválido. Use só o nome de usuário, como @gatinhos.do.bairro." }, 400, cors);
+  if (!instagram) return resp({ erro: "Instagram inválido. Digite só o nome de usuário, sem o @ (ex.: gatinhos.do.bairro)." }, 400, cors);
   if (b.aceite !== true) return resp({ erro: "É preciso concordar com a exibição pública do Instagram." }, 400, cors);
 
   // foto: precisa ser JPEG de verdade (começa com FFD8FF, termina com FFD9) e de tamanho razoável

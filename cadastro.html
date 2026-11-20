@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SINADIGA - Cadastro de Gatos para Adoção</title>
-<link rel="stylesheet" href="estilo.css">
+<link rel="stylesheet" href="estilo.css?v=3">
 </head>
 <body>
 
@@ -19,7 +19,7 @@
   <h1>Cadastro de Gatos para Adoção</h1>
   <p>Cadastre aqui o gato que aguarda adoção. Todo cadastro passa por aprovação da administração do SINADIGA; depois de aprovado, a fotografia dele passa a integrar o painel de procurados exibido no rodapé do site.</p>
 
-  <form id="form">
+  <form id="form" novalidate>
     <label for="foto">Fotografia: *</label>
     <input type="file" id="foto" accept="image/*" required>
     <div class="previa" id="previa" hidden></div>
@@ -29,13 +29,14 @@
 
     <div class="linha">
       <div><label for="mes">Mês de nascimento: *</label><select id="mes" required></select></div>
-      <div><label for="ano">Ano: *</label><input type="number" id="ano" required style="width:80px"></div>
-      <div><label for="dia">Dia (opcional):</label><input type="number" id="dia" min="1" max="31" style="width:80px"></div>
+      <div><label for="ano">Ano: *</label><input type="number" id="ano" inputmode="numeric" placeholder="aaaa" required style="width:80px"></div>
+      <div><label for="dia">Dia (opcional):</label><input type="number" id="dia" inputmode="numeric" min="1" max="31" style="width:80px"></div>
     </div>
     <p class="desc" style="margin:4px 0 0">* campos obrigatórios. Se o dia exato for desconhecido, deixe em branco.</p>
 
-    <label for="instagram">Seu Instagram (para contato da adoção): *</label>
-    <input type="text" id="instagram" maxlength="60" placeholder="@seu.usuario" autocomplete="off" required>
+    <label for="instagram">Seu Instagram (só o usuário, sem o @): *</label>
+    <input type="text" id="instagram" maxlength="30" placeholder="seu.usuario" autocomplete="off" autocapitalize="none" spellcheck="false" required>
+    <div class="dica" id="dicaInsta"></div>
     <label class="aceite"><input type="checkbox" id="aceite" required> Concordo que meu Instagram seja exibido publicamente no botão "Quero adotar", para que interessados entrem em contato comigo.</label>
 
     <div id="captcha" style="margin-top:12px"></div>
@@ -46,14 +47,15 @@
 
 <div id="carrossel"></div>
 
-<script src="config.js"></script>
-<script src="gatos.js"></script>
+<script src="config.js?v=3"></script>
+<script src="gatos.js?v=3"></script>
 <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
 <script>
 const $ = id => document.getElementById(id);
 const hoje = new Date();
 $("mes").innerHTML = '<option value="">Selecione</option>' + MESES.map((m, i) => `<option value="${i + 1}">${m}</option>`).join("");
-$("ano").min = 1990; $("ano").max = hoje.getFullYear();
+const ANO_MAX = hoje.getFullYear(), ANO_MIN = ANO_MAX - 30; // mesma regra da API (nascimento até 30 anos atrás)
+$("ano").min = ANO_MIN; $("ano").max = ANO_MAX;
 
 const carregar = url => new Promise((ok, erro) => { const i = new Image(); i.onload = () => ok(i); i.onerror = erro; i.src = url; });
 function recortar(img, w, h) { // recorte "cover" em JPEG 300x400 (também remove metadados da foto original)
@@ -78,19 +80,39 @@ $("foto").onchange = () => {
   if (f) { const u = URL.createObjectURL(f); p.style.backgroundImage = `url(${u})`; }
 };
 
+const CAMPOS = ["foto", "nome", "mes", "ano", "dia", "instagram", "aceite"];
+function erroCampo(id, msg) { $(id).classList.add("invalido"); $(id).focus(); aviso(msg, false); return false; }
+function validar() {
+  CAMPOS.forEach(c => $(c).classList.remove("invalido"));
+  const nome = $("nome").value.trim(), mes = +$("mes").value, anoTxt = $("ano").value.trim(), ano = +anoTxt, dia = $("dia").value.trim();
+  if (!$("foto").files[0]) return erroCampo("foto", "Escolha a fotografia do gato.");
+  if (!nome) return erroCampo("nome", "Informe o nome do gato.");
+  if (!mes) return erroCampo("mes", "Selecione o mês de nascimento.");
+  if (!/^\d{4}$/.test(anoTxt)) return erroCampo("ano", "Informe o ano com 4 dígitos (ex.: " + ANO_MAX + ").");
+  if (ano < ANO_MIN || ano > ANO_MAX) return erroCampo("ano", `Ano inválido. Informe um ano entre ${ANO_MIN} e ${ANO_MAX}.`);
+  if (dia) {
+    if (!/^\d{1,2}$/.test(dia) || +dia < 1 || +dia > 31) return erroCampo("dia", "Dia inválido. Informe de 1 a 31 ou deixe em branco.");
+    const t = new Date(ano, mes - 1, +dia);
+    if (t.getMonth() !== mes - 1) return erroCampo("dia", "Esse dia não existe nesse mês.");
+    if (t > hoje) return erroCampo("dia", "A data de nascimento não pode estar no futuro.");
+  } else if (ano === ANO_MAX && mes > hoje.getMonth() + 1) return erroCampo("mes", "A data de nascimento não pode estar no futuro.");
+  const insta = $("instagram").value.trim();
+  if (insta.includes("@")) return erroCampo("instagram", "Digite o Instagram sem o @ (ex.: gatinhos.do.bairro).");
+  if (!normalizarInstagram(insta)) return erroCampo("instagram", "Instagram inválido. Use só letras, números, ponto e sublinhado (até 30), sem espaços, sem @ e sem link.");
+  if (!$("aceite").checked) return erroCampo("aceite", "Marque a concordância com a exibição pública do seu Instagram.");
+  return true;
+}
+// aviso imediato enquanto digita o Instagram
+$("instagram").oninput = () => {
+  const v = $("instagram").value.trim();
+  $("dicaInsta").textContent = v.includes("@") ? "Digite sem o @." : /[\/:]/.test(v) ? "Digite só o usuário, sem link." : v && !normalizarInstagram(v) ? "Use só letras, números, ponto e sublinhado." : "";
+};
+
 $("form").onsubmit = async e => {
   e.preventDefault();
-  const f = $("foto").files[0], nome = $("nome").value.trim(), mes = +$("mes").value, ano = +$("ano").value, dia = $("dia").value ? +$("dia").value : null;
-  if (!f || !nome || !mes || !ano) return aviso("Preencha foto, nome, mês e ano de nascimento.", false);
+  if (!validar()) return;
+  const f = $("foto").files[0], nome = $("nome").value.trim(), mes = +$("mes").value, ano = +$("ano").value, dia = $("dia").value.trim() ? +$("dia").value : null;
   const instagram = normalizarInstagram($("instagram").value);
-  if (!instagram) return aviso("Instagram inválido. Use só o nome de usuário, como @gatinhos.do.bairro.", false);
-  if (!$("aceite").checked) return aviso("Marque a concordância com a exibição pública do seu Instagram.", false);
-  if (ano < 1990 || ano > hoje.getFullYear()) return aviso("Ano de nascimento inválido.", false);
-  if (dia) {
-    const t = new Date(ano, mes - 1, dia);
-    if (t.getMonth() !== mes - 1) return aviso("O dia informado não existe nesse mês.", false);
-    if (t > hoje) return aviso("A data de nascimento não pode estar no futuro.", false);
-  } else if (ano === hoje.getFullYear() && mes > hoje.getMonth() + 1) return aviso("A data de nascimento não pode estar no futuro.", false);
   const captcha = widget !== null && window.turnstile ? turnstile.getResponse(widget) : "";
   if (!captcha) return aviso("Confirme a verificação anti-robô antes de enviar.", false);
 
