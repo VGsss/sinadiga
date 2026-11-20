@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SINADIGA - Atestado de Antecedentes Felinos</title>
-<link rel="stylesheet" href="estilo.css?v=6">
+<link rel="stylesheet" href="estilo.css?v=7">
 </head>
 <body>
 
@@ -76,8 +76,21 @@
 </main>
 
 <div id="carrossel"></div>
-<script src="config.js?v=6"></script>
-<script src="gatos.js?v=6"></script>
+
+<dialog id="modalFiltro">
+  <form method="dialog" id="formFiltro">
+    <h1>Filtrar gatos por cidade</h1>
+    <p>Escolha o estado e, se quiser, a cidade.</p>
+    <label for="fUf">Estado:</label>
+    <select id="fUf"></select>
+    <label for="fCidade">Cidade:</label>
+    <select id="fCidade" disabled style="min-width:230px"></select>
+    <div class="btns"><button id="fOk" disabled>Aplicar filtro</button><button type="button" id="fTodos">Ver todos os gatos</button><button type="button" id="fFechar">Agora não</button></div>
+  </form>
+</dialog>
+<script src="config.js?v=7"></script>
+<script src="gatos.js?v=7"></script>
+<script src="local.js?v=7"></script>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
@@ -375,6 +388,49 @@ $("baixar").onclick = baixarPDF;
 if (location.hash.startsWith("#f=")) {
   try { F = ler(location.hash); mostrar(); $("viaQR").hidden = false; $("outra").hidden = true; } catch (e) { console.error(e); }
 }
+</script>
+<script>
+// ---------- filtro do carrossel (a janela de cidade só abre por este botão) ----------
+let filtroAtual = null, escolheuFiltro = false;
+const FM = $("modalFiltro");
+window.abrirFiltro = async () => {
+  try { await carregarCidades(); } catch (e) { return alert("Não foi possível carregar a lista de cidades."); }
+  escolheuFiltro = false;
+  preencherUf($("fUf"), "Selecione o estado");
+  if (filtroAtual) $("fUf").value = String(CID.ufs.findIndex(u => u[0] === filtroAtual.uf));
+  preencherCidades($("fUf"), $("fCidade"), "Todas as cidades");
+  if (filtroAtual && filtroAtual.cidade) {
+    const c = CID.c.find(x => x[1] === filtroAtual.cidade && CID.ufs[x[2]][0] === filtroAtual.uf);
+    if (c) $("fCidade").value = String(c[0]);
+  }
+  $("fOk").disabled = $("fUf").value === "";
+  FM.showModal();
+};
+$("fUf").onchange = () => { preencherCidades($("fUf"), $("fCidade"), "Todas as cidades"); $("fOk").disabled = $("fUf").value === ""; };
+$("formFiltro").onsubmit = () => {
+  escolheuFiltro = true;
+  const cid = $("fCidade").value ? CID.c.find(c => c[0] === +$("fCidade").value)[1] : null;
+  filtroAtual = { uf: CID.ufs[+$("fUf").value][0], cidade: cid };
+  renderCarrossel({ filtro: filtroAtual });
+};
+$("fTodos").onclick = () => { escolheuFiltro = true; filtroAtual = null; renderCarrossel(); FM.close(); };
+$("fFechar").onclick = () => FM.close();
+FM.addEventListener("click", e => { // clique fora da caixa fecha
+  const r = FM.getBoundingClientRect();
+  if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) FM.close();
+});
+// fechou sem aplicar nem escolher "ver todos" (clique fora, Esc ou "Agora não"): mostra só os 10 últimos gatos cadastrados
+FM.addEventListener("close", () => { if (!escolheuFiltro) { filtroAtual = null; renderCarrossel({ limite: 10 }); } });
+
+// ---------- localização: pedida ao acessar o site; se não for possível, segue mostrando todos (sem janela) ----------
+function localizarVisitante() {
+  pedirLocalizacao().then(({ cidade }) => {
+    filtroAtual = { uf: CID.ufs[cidade[2]][0], cidade: cidade[1] };
+    renderCarrossel({ filtro: filtroAtual, gps: true });
+  }).catch(() => {});
+}
+renderCarrossel();
+localizarVisitante();
 </script>
 </body>
 </html>
