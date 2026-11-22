@@ -5,6 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
 <title>SINADIGA - Administração</title>
+<!-- Anti-clickjacking: a página fica invisível e só aparece se NÃO estiver dentro de um quadro de outro site.
+     A hospedagem não permite cabeçalhos (X-Frame-Options/CSP); se o quadro bloquear a navegação (sandbox), a página continua oculta. -->
+<style id="antiquadro">html{display:none !important}</style>
+<script>
+if (self === top) document.getElementById("antiquadro").remove();
+else { try { top.location = self.location; } catch (e) { /* bloqueado: continua oculta */ } }
+</script>
 <link rel="stylesheet" href="estilo.css?v=9">
 </head>
 <body>
@@ -75,6 +82,7 @@ async function carregarLista() {
   try { r = await fetch(SINADIGA.api + "/admin/gatos", { headers: H() }); }
   catch (e) { return aviso("Sem conexão com o servidor. Vou tentar de novo no próximo minuto.", false); }
   if (r.status === 401) return sair("Senha incorreta.");
+  if (r.status === 429) return sair("Muitas tentativas. Aguarde 1 minuto antes de tentar de novo.");
   if (!r.ok) return aviso("Não foi possível carregar (" + r.status + ").", false);
   const todos = await r.json();
   aviso("");

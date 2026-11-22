@@ -10,7 +10,11 @@ database_name = "sinadiga"
 database_id = "83a7d5ed-5978-4638-ae3c-ad02d8e1072d"
 
 [vars]
-# sites autorizados a chamar a API pelo navegador (CORS)
-ALLOWED_ORIGINS = "https://sinadiga.com.br,https://www.sinadiga.com.br,https://vgsss.github.io,http://localhost:8765"
+# sites autorizados a chamar a API pelo navegador (CORS). Em desenvolvimento, o localhost é liberado só no arquivo api/.dev.vars (nunca vai para produção)
+ALLOWED_ORIGINS = "https://sinadiga.com.br,https://www.sinadiga.com.br,https://vgsss.github.io"
 # endereço do painel, incluído na mensagem do Telegram
 ADMIN_URL = "https://sinadiga.com.br/admin.html"
+
+# limpeza diária: apaga anúncios com mais de 30 dias (06:17 UTC)
+[triggers]
+crons = ["17 6 * * *"]

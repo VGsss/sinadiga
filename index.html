@@ -51,7 +51,6 @@
   <!-- ETAPA 3 -->
   <section class="etapa" id="e3" hidden>
     <h1>Resultado da Pesquisa</h1>
-    <div class="box c" id="viaQR" hidden>Atestado aberto a partir do QR Code. A fotografia foi reduzida para caber no código.</div>
     <div class="foto"><span id="emoji">🐱</span><img id="img" alt="" hidden></div>
     <div id="nomeOut"></div>
 
@@ -134,15 +133,12 @@ const CRIMES = [
   ["Maus-tratos ao dono", "Art. 136 do CP", "Submeteu o dono a condições degradantes: arranhões, pelo no prato e silêncio de desprezo."],
 ];
 const STATUS = ["FORAGIDO", "SOLTO POR FALTA DE PROVAS (E DE VERGONHA)", "LIBERDADE PROVISÓRIA (NO SOFÁ)", "REINCIDENTE", "ALTAMENTE PERICULOSO (FOFO)"];
-// ponytail: troque pela URL pública do site depois de hospedar; o QR Code do PDF aponta para ela.
-const SITE_URL = location.href.split("#")[0];
-const TW = 30, TH = 40; // miniatura que viaja dentro do QR Code (4 bits por pixel = 600 bytes)
+// O QR Code do PDF contém SOMENTE o endereço do site (nenhum dado da ficha viaja no link).
+const SITE_URL = "https://sinadiga.com.br/", SITE_TEXTO = "sinadiga.com.br";
 const $ = id => document.getElementById(id);
 const rnd = n => Math.floor(Math.random() * n);
 const esc = s => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-const b64 = s => btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-const unb64 = s => atob(s.replace(/-/g, "+").replace(/_/g, "/"));
-let F; // ficha atual: {n,r,p,t,s,v,c:[[idxCrime,pena]], photo(dataURL), g(miniatura base64url)}
+let F; // ficha atual: {n,r,p,t,s,v,c:[[idxCrime,pena]], photo(dataURL)}
 
 function go(n) {
   document.querySelectorAll(".etapa").forEach(e => e.hidden = e.id !== "e" + n);
@@ -164,40 +160,6 @@ function cinza(src, w, h) {
 }
 const carregar = url => new Promise((ok, erro) => { const i = new Image(); i.onload = () => ok(i); i.onerror = erro; i.src = url; });
 
-function miniatura(canvas) { // canvas cinza -> base64url de 4 bits/pixel, com contraste normalizado
-  const c = cinza(canvas, TW, TH), p = c.getContext("2d").getImageData(0, 0, TW, TH).data;
-  let lo = 255, hi = 0;
-  for (let i = 0; i < p.length; i += 4) { lo = Math.min(lo, p[i]); hi = Math.max(hi, p[i]); }
-  const q = i => Math.round((p[i * 4] - lo) / Math.max(hi - lo, 1) * 15);
-  let s = "";
-  for (let i = 0; i < TW * TH; i += 2) s += String.fromCharCode(q(i) << 4 | q(i + 1));
-  return b64(s);
-}
-function deMiniatura(g) { // base64url -> dataURL ampliada (suavizada)
-  const s = unb64(g), c = document.createElement("canvas"); c.width = TW; c.height = TH;
-  const x = c.getContext("2d"), id = x.createImageData(TW, TH);
-  for (let i = 0; i < TW * TH; i++) {
-    const b = s.charCodeAt(i >> 1), v = (i % 2 ? b & 15 : b >> 4) * 17;
-    id.data.set([v, v, v, 255], i * 4);
-  }
-  x.putImageData(id, 0, 0);
-  const o = document.createElement("canvas"); o.width = TW * 8; o.height = TH * 8;
-  const y = o.getContext("2d"); y.imageSmoothingQuality = "high"; y.drawImage(c, 0, 0, o.width, o.height);
-  return o.toDataURL("image/jpeg", .9);
-}
-
-// dados -> link do QR Code: SITE#f=<json base64url>.<miniatura base64url>
-function link(f) {
-  const j = JSON.stringify({ n: f.n, r: f.r, p: f.p, t: f.t, s: f.s, v: f.v, c: f.c });
-  return SITE_URL + "#f=" + b64(String.fromCharCode(...new TextEncoder().encode(j))) + (f.g ? "." + f.g : "");
-}
-function ler(hash) {
-  const [j, g] = hash.slice(3).split(".");
-  const f = JSON.parse(new TextDecoder().decode(Uint8Array.from(unb64(j), ch => ch.charCodeAt(0))));
-  if (g) { f.g = g; f.photo = deMiniatura(g); }
-  return f;
-}
-
 async function gerar() {
   const nome = $("nome").value.trim();
   if (!nome) return;
@@ -215,7 +177,6 @@ async function gerar() {
     try {
       const img = await carregar(u), grande = cinza(img, 300, 400);
       F2.photo = grande.toDataURL("image/jpeg", .85);
-      F2.g = miniatura(grande);
     } finally { URL.revokeObjectURL(u); }
   }
   F = F2;
@@ -264,7 +225,7 @@ function brasao(d, x, y, r, tipo) {
 
 // ponytail: a lib gera um QR ilegível na versão 23 (testado com zxing e jsQR); usa só versões que os dois leram.
 function criarQR(texto) {
-  for (const v of [10, 12, 13, 15, 16, 18, 20, 22, 24, 28]) {
+  for (const v of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 13, 15, 16, 18, 20, 22, 24, 28]) {
     try { const q = qrcode(v, "L"); q.addData(texto); q.make(); return q; } catch (e) { /* não coube: tenta a próxima versão */ }
   }
   throw new Error("dados grandes demais para o QR Code");
@@ -309,16 +270,16 @@ async function baixarPDF() {
   linha("Vidas restantes:", F.v + " de 9");
   linha("Data da emissão:", data);
 
-  const qr = criarQR(link(F));
+  const qr = criarQR(SITE_URL);
   const n = qr.getModuleCount(), Q = 48, m = Q / n, qx = W - M - 5 - Q, qy = y + 6;
   d.setFillColor(0);
   for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) {
     if (!qr.isDark(r, c)) continue;
     let e = c; while (e + 1 < n && qr.isDark(r, e + 1)) e++; // junta módulos vizinhos numa linha
-    d.rect(qx + c * m, qy + r * m, (e - c + 1) * m + .02, m + .02, "F"); c = e;
+    d.rect(qx + c * m, qy + r * m, (e - c + 1) * m + .08, m + .08, "F"); c = e; // .08 mm de sobra evita frestas brancas entre as linhas
   }
   d.setFont("helvetica", "normal"); d.setFontSize(6.5);
-  d.text("Leia com a câmera do celular", qx + Q / 2, qy + Q + 6, { align: "center" });
+  d.text("Acesse o SINADIGA", qx + Q / 2, qy + Q + 6, { align: "center" });
 
   // quadro 2: atestado + assinatura
   y += h1 + 8; const h2 = 40;
@@ -366,8 +327,8 @@ async function baixarPDF() {
   y += 16;
   d.rect(M, y, CW, 26);
   d.setFont("helvetica", "normal"); d.setFontSize(8);
-  d.text(nl(`Este atestado foi emitido em ${data}, às ${hora} horas e está disponível para consulta no endereço da internet abaixo. Para abrir o atestado completo (dados e fotografia), leia o QR Code com a câmera do celular.`, CW - 10), M + 5, y + 6);
-  d.setFont("helvetica", "bold"); d.setTextColor(0, 80, 140); d.text(SITE_URL, M + 5, y + 16);
+  d.text(nl(`Este atestado foi emitido em ${data}, às ${hora} horas. Para acessar o SINADIGA, leia o QR Code com a câmera do celular ou digite o endereço abaixo no navegador.`, CW - 10), M + 5, y + 6);
+  d.setFont("helvetica", "bold"); d.setTextColor(0, 80, 140); d.text(SITE_TEXTO, M + 5, y + 16);
   d.setTextColor(0); d.text("Código: " + codigo, M + 5, y + 22);
   d.setFont("helvetica", "normal"); d.setFontSize(6); d.setTextColor(120);
   d.text("Documento fictício e humorístico. Nenhum gato foi preso nesta operação.", W / 2, 291, { align: "center" });
@@ -384,11 +345,6 @@ $("validar").onclick = () => {
 $("form").onsubmit = e => { e.preventDefault(); gerar(); };
 $("outra").onclick = gerar;
 $("baixar").onclick = baixarPDF;
-
-// aberto pelo QR Code: reconstrói a ficha a partir do link
-if (location.hash.startsWith("#f=")) {
-  try { F = ler(location.hash); mostrar(); $("viaQR").hidden = false; $("outra").hidden = true; } catch (e) { console.error(e); }
-}
 </script>
 <script>
 // ---------- filtro do carrossel (a janela de cidade só abre por este botão) ----------

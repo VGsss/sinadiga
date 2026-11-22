@@ -5,7 +5,9 @@ import { CIDADES } from "./cidades.js"; // municípios do IBGE (id -> [nome, UF]
 
 const MAX_FOTO_B64 = 160_000;   // ~120 KB de JPEG
 const IDADE_MAX = 30;           // anos: nascimento mais antigo aceito (gatos raramente passam disso)
-const MAX_POR_HORA = 5;        // cadastros por visitante por hora
+const MAX_POR_DIA = 5;          // cadastros por visitante (IP) em 24 horas
+const RETENCAO_DIAS = 30;       // anúncios (e os dados deles, como o Instagram e o hash do IP) são apagados depois disso
+const BLOQUEIO_ADMIN_MS = 60_000; // depois de uma senha errada, o mesmo IP só pode tentar de novo após 1 minuto
 const MAX_PENDENTES = 100;      // fila de moderação cheia = recusa novos cadastros
 
 const resp = (corpo, status, cors, extra = {}) =>
@@ -22,7 +24,16 @@ export default {
     try { return await rota(req, env, new URL(req.url), cors, ctx); }
     catch (e) { console.error(e); return resp({ erro: "Erro interno." }, 500, cors); }
   },
+  // Cron Trigger diário (wrangler.toml): apaga os anúncios com mais de RETENCAO_DIAS dias
+  async scheduled(event, env, ctx) { ctx.waitUntil(limparExpirados(env)); },
 };
+
+const corteRetencao = () => Date.now() - RETENCAO_DIAS * 86400_000;
+async function limparExpirados(env) {
+  const r = await env.DB.prepare("DELETE FROM gatos WHERE criado < ?").bind(corteRetencao()).run();
+  await env.DB.prepare("DELETE FROM tentativas_admin WHERE ultima < ?").bind(Date.now() - 3600_000).run();
+  console.log(`Limpeza diária: ${r.meta.changes} anúncio(s) com mais de ${RETENCAO_DIAS} dias apagado(s).`);
+}
 
 async function sha256(txt) {
   return crypto.subtle.digest("SHA-256", new TextEncoder().encode(txt));
@@ -30,11 +41,25 @@ async function sha256(txt) {
 async function sha256hex(txt) {
   return [...new Uint8Array(await sha256(txt))].map(b => b.toString(16).padStart(2, "0")).join("");
 }
-async function ehAdmin(req, env) {
+// Autentica o administrador. Devolve null se autorizado, ou a resposta de recusa.
+// Limite: depois de UMA senha errada, aquele IP fica 1 minuto sem poder tentar (até a senha certa é recusada nesse período,
+// para o atacante não saber se acertou). Cada IP tem a sua própria contagem; o IP vem do Cloudflare e não pode ser forjado.
+async function checarAdmin(req, env, cors) {
+  if (!env.ADMIN_TOKEN) return resp({ erro: "Não autorizado." }, 401, cors);
   const t = (req.headers.get("Authorization") || "").replace(/^Bearer /, "");
-  if (!env.ADMIN_TOKEN || !t) return false;
-  const [a, b] = await Promise.all([sha256(t), sha256(env.ADMIN_TOKEN)]);
-  return crypto.subtle.timingSafeEqual(a, b); // compara hashes: tempo constante
+  const ip = await sha256hex("admin|" + (req.headers.get("CF-Connecting-IP") || "") + "|" + env.ADMIN_TOKEN);
+  const agora = Date.now();
+  const bloqueado = await env.DB.prepare("SELECT ultima FROM tentativas_admin WHERE ip=? AND ultima>?").bind(ip, agora - BLOQUEIO_ADMIN_MS).first();
+  if (bloqueado) {
+    const espera = Math.ceil((bloqueado.ultima + BLOQUEIO_ADMIN_MS - agora) / 1000);
+    return resp({ erro: `Muitas tentativas. Aguarde ${espera} segundos.` }, 429, cors, { "retry-after": String(espera) });
+  }
+  if (t) {
+    const [x, y] = await Promise.all([sha256(t), sha256(env.ADMIN_TOKEN)]);
+    if (crypto.subtle.timingSafeEqual(x, y)) return null; // compara hashes: tempo constante
+    await env.DB.prepare("INSERT OR REPLACE INTO tentativas_admin (ip, ultima) VALUES (?, ?)").bind(ip, agora).run(); // só tentativas com senha contam
+  }
+  return resp({ erro: "Não autorizado." }, 401, cors);
 }
 function bytesDoBase64(b64) { return Uint8Array.from(atob(b64), c => c.charCodeAt(0)); }
 function fotoResp(b64, cors, cache) {
@@ -48,18 +73,19 @@ async function rota(req, env, url, cors, ctx) {
 
   // ---------- público ----------
   if (m === "GET" && p === "/gatos") {
-    const { results } = await env.DB.prepare("SELECT id, nome, mes, ano, dia, cidade, uf, instagram FROM gatos WHERE status='aprovado' ORDER BY criado DESC LIMIT 200").all();
+    const { results } = await env.DB.prepare("SELECT id, nome, mes, ano, dia, cidade, uf, instagram FROM gatos WHERE status='aprovado' AND criado > ? ORDER BY criado DESC LIMIT 200").bind(corteRetencao()).all();
     return resp(results, 200, cors, { "cache-control": "public, max-age=60" });
   }
   if (m === "GET" && (r = p.match(/^\/gatos\/([\w-]{36})\/foto$/))) {
-    const g = await env.DB.prepare("SELECT foto FROM gatos WHERE id=? AND status='aprovado'").bind(r[1]).first();
+    const g = await env.DB.prepare("SELECT foto FROM gatos WHERE id=? AND status='aprovado' AND criado > ?").bind(r[1], corteRetencao()).first();
     return g ? fotoResp(g.foto, cors, "public, max-age=86400") : resp({ erro: "Não encontrado." }, 404, cors);
   }
   if (m === "POST" && p === "/gatos") return cadastrar(req, env, cors, ctx);
 
   // ---------- administrador ----------
   if (p.startsWith("/admin/")) {
-    if (!(await ehAdmin(req, env))) return resp({ erro: "Não autorizado." }, 401, cors);
+    const recusa = await checarAdmin(req, env, cors);
+    if (recusa) return recusa;
     if (m === "POST" && p === "/admin/telegram-teste") { // confere se o bot está configurado: manda uma mensagem de teste
       const x = await telegram(env, "sendMessage", { text: "Teste do SINADIGA: as notificações de novos cadastros estão funcionando." });
       return resp(x, x.ok ? 200 : 502, cors);
@@ -138,9 +164,9 @@ async function cadastrar(req, env, cors, ctx) {
 
   // limites: por visitante (IP guardado só como hash) e tamanho da fila de moderação
   const ipHash = await sha256hex(ip + (env.ADMIN_TOKEN || ""));
-  const hora = Date.now() - 3600_000;
-  const rec = await env.DB.prepare("SELECT COUNT(*) AS n FROM gatos WHERE ip=? AND criado>?").bind(ipHash, hora).first();
-  if (rec.n >= MAX_POR_HORA) return resp({ erro: "Muitos cadastros seguidos. Tente mais tarde." }, 429, cors);
+  const desde = Date.now() - 86400_000;
+  const rec = await env.DB.prepare("SELECT COUNT(*) AS n FROM gatos WHERE ip=? AND criado>?").bind(ipHash, desde).first();
+  if (rec.n >= MAX_POR_DIA) return resp({ erro: `Limite de ${MAX_POR_DIA} cadastros por dia atingido. Tente novamente amanhã.` }, 429, cors);
   const fila = await env.DB.prepare("SELECT COUNT(*) AS n FROM gatos WHERE status='pendente'").first();
   if (fila.n >= MAX_PENDENTES) return resp({ erro: "Fila de aprovação cheia. Tente mais tarde." }, 503, cors);
 

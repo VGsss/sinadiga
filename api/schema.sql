@@ -14,3 +14,9 @@ CREATE TABLE IF NOT EXISTS gatos (
 );
 CREATE INDEX IF NOT EXISTS idx_gatos_status ON gatos (status, criado);
 CREATE INDEX IF NOT EXISTS idx_gatos_ip ON gatos (ip, criado);
+
+-- limite de tentativas de senha do administrador (1 por minuto por IP; o IP é guardado só como hash)
+CREATE TABLE IF NOT EXISTS tentativas_admin (
+  ip     TEXT PRIMARY KEY,
+  ultima INTEGER NOT NULL                      -- ms desde 1970 da última senha errada
+);
