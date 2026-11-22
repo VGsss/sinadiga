@@ -9,6 +9,9 @@ const MAX_POR_DIA = 5;          // cadastros por visitante (IP) em 24 horas
 const RETENCAO_DIAS = 30;       // anúncios (e os dados deles, como o Instagram e o hash do IP) são apagados depois disso
 const BLOQUEIO_ADMIN_MS = 60_000; // depois de uma senha errada, o mesmo IP só pode tentar de novo após 1 minuto
 const MAX_PENDENTES = 100;      // fila de moderação cheia = recusa novos cadastros
+const MAX_POR_HORA = 30;         // cadastros no site todo por hora: impede que muitos IPs encham a fila de uma vez
+const PENDENTE_DIAS = 7;        // cadastro que ninguém aprovou em 7 dias sai da fila
+const MAX_CORPO = 250_000;      // bytes: corpo máximo de um cadastro (foto de até 160 KB em base64 + campos)
 
 const resp = (corpo, status, cors, extra = {}) =>
   new Response(JSON.stringify(corpo), { status, headers: { "content-type": "application/json; charset=utf-8", ...cors, ...extra } });
@@ -30,7 +33,7 @@ export default {
 
 const corteRetencao = () => Date.now() - RETENCAO_DIAS * 86400_000;
 async function limparExpirados(env) {
-  const r = await env.DB.prepare("DELETE FROM gatos WHERE criado < ?").bind(corteRetencao()).run();
+  const r = await env.DB.prepare("DELETE FROM gatos WHERE criado < ? OR (status='pendente' AND criado < ?)").bind(corteRetencao(), Date.now() - PENDENTE_DIAS * 86400_000).run();
   await env.DB.prepare("DELETE FROM tentativas_admin WHERE ultima < ?").bind(Date.now() - 3600_000).run();
   console.log(`Limpeza diária: ${r.meta.changes} anúncio(s) com mais de ${RETENCAO_DIAS} dias apagado(s).`);
 }
@@ -119,8 +122,13 @@ function normalizarInstagram(v) {
 }
 
 async function cadastrar(req, env, cors, ctx) {
-  const b = await req.json().catch(() => null);
-  if (!b || typeof b !== "object") return resp({ erro: "Dados inválidos." }, 400, cors);
+  // corpo limitado antes de ler (o Content-Length é conferido de novo no texto lido, pois pode faltar ou mentir)
+  if (Number(req.headers.get("content-length")) > MAX_CORPO) return resp({ erro: "Dados grandes demais." }, 413, cors);
+  const txt = await req.text();
+  if (txt.length > MAX_CORPO) return resp({ erro: "Dados grandes demais." }, 413, cors);
+  let b = null;
+  try { b = JSON.parse(txt); } catch { /* inválido: tratado abaixo */ }
+  if (!b || typeof b !== "object" || Array.isArray(b)) return resp({ erro: "Dados inválidos." }, 400, cors);
 
   const nome = String(b.nome ?? "").replace(/[\u0000-\u001f\u007f]/g, "").replace(/\s+/g, " ").trim();
   const mes = Number(b.mes), ano = Number(b.ano), dia = b.dia ? Number(b.dia) : null;
@@ -150,7 +158,9 @@ async function cadastrar(req, env, cors, ctx) {
   const pref = "data:image/jpeg;base64,";
   if (!f.startsWith(pref) || f.length - pref.length > MAX_FOTO_B64 || !/^[A-Za-z0-9+/]+={0,2}$/.test(f.slice(pref.length)))
     return resp({ erro: "Foto inválida ou grande demais." }, 400, cors);
-  const foto = f.slice(pref.length), bytes = bytesDoBase64(foto);
+  const foto = f.slice(pref.length);
+  let bytes;
+  try { bytes = bytesDoBase64(foto); } catch { return resp({ erro: "A foto não é um JPEG válido." }, 400, cors); } // base64 com tamanho inválido faz atob lançar erro
   if (bytes.length < 200 || bytes[0] !== 0xff || bytes[1] !== 0xd8 || bytes[2] !== 0xff || bytes.at(-2) !== 0xff || bytes.at(-1) !== 0xd9)
     return resp({ erro: "A foto não é um JPEG válido." }, 400, cors);
 
@@ -167,8 +177,10 @@ async function cadastrar(req, env, cors, ctx) {
   const desde = Date.now() - 86400_000;
   const rec = await env.DB.prepare("SELECT COUNT(*) AS n FROM gatos WHERE ip=? AND criado>?").bind(ipHash, desde).first();
   if (rec.n >= MAX_POR_DIA) return resp({ erro: `Limite de ${MAX_POR_DIA} cadastros por dia atingido. Tente novamente amanhã.` }, 429, cors);
-  const fila = await env.DB.prepare("SELECT COUNT(*) AS n FROM gatos WHERE status='pendente'").first();
-  if (fila.n >= MAX_PENDENTES) return resp({ erro: "Fila de aprovação cheia. Tente mais tarde." }, 503, cors);
+  const hora = await env.DB.prepare("SELECT COUNT(*) AS n FROM gatos WHERE criado>?").bind(Date.now() - 3600_000).first();
+  if (hora.n >= MAX_POR_HORA) return resp({ erro: "Muitos cadastros agora. Tente de novo em alguns minutos." }, 503, cors);
+  const pend = await env.DB.prepare("SELECT COUNT(*) AS n FROM gatos WHERE status='pendente'").first();
+  if (pend.n >= MAX_PENDENTES) return resp({ erro: "Fila de aprovação cheia. Tente mais tarde." }, 503, cors);
 
   await env.DB.prepare("INSERT INTO gatos (id, nome, mes, ano, dia, cidade, uf, instagram, foto, status, ip, criado) VALUES (?,?,?,?,?,?,?,?,?, 'pendente', ?, ?)")
     .bind(crypto.randomUUID(), nome, mes, ano, dia, cidade, uf, instagram, foto, ipHash, Date.now()).run();
