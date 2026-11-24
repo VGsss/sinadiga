@@ -47,3 +47,6 @@ const FRASES_RODAPE = [
   } catch (e) { /* sem armazenamento: segue só com o sorteio */ }
   el.textContent = FRASES_RODAPE[i];
 })();
+
+// Contagem anônima de visitantes únicos por dia (o servidor só guarda um hash que muda todo dia; nenhum cookie).
+try { fetch(SINADIGA.api + "/visita", { method: "POST", body: location.pathname.includes("cadastro") ? "cadastro" : "inicio", keepalive: true }).catch(() => {}); } catch (e) { /* contagem é opcional */ }

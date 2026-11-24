@@ -72,4 +72,9 @@ $("testeTg").onclick = async () => {
   const j = await r.json().catch(() => ({}));
   aviso(r.ok ? "Mensagem de teste enviada ao Telegram. Confira o celular." : "Telegram: " + (j.descricao || "falha ao enviar (" + r.status + ")."), r.ok);
 };
+$("relTg").onclick = async () => {
+  const r = await fetch(SINADIGA.api + "/admin/relatorio-teste", { method: "POST", headers: H() });
+  const j = await r.json().catch(() => ({}));
+  aviso(r.ok ? "Relatório de hoje (parcial) enviado ao Telegram." : "Telegram: " + (j.descricao || "falha ao enviar (" + r.status + ")."), r.ok);
+};
 if (token) carregarLista();

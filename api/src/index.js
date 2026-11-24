@@ -28,13 +28,45 @@ export default {
     catch (e) { console.error(e); return resp({ erro: "Erro interno." }, 500, cors); }
   },
   // Cron Trigger diário (wrangler.toml): apaga os anúncios com mais de RETENCAO_DIAS dias
-  async scheduled(event, env, ctx) { ctx.waitUntil(limparExpirados(env)); },
+  // e, às 23:00 UTC (20:00 em Brasília), manda o relatório de visitas do dia ao Telegram
+  async scheduled(event, env, ctx) { ctx.waitUntil(event.cron === CRON_RELATORIO ? relatorio(env, diaBR(), " (até as 20h)") : limparExpirados(env)); },
 };
+
+const CRON_RELATORIO = "0 23 * * *"; // igual ao wrangler.toml (23:00 UTC = 20:00 em Brasília)
+const PAGINAS = { inicio: "Página inicial", cadastro: "Cadastro de gatos" };
+const diaBR = (desloca = 0) => new Date(Date.now() - 3 * 3600_000 + desloca * 86400_000).toISOString().slice(0, 10); // AAAA-MM-DD em Brasília (UTC-3, sem horário de verão)
+
+// Visita: só conta visitante único por dia e página (1 gravação por visitante, não por acesso). Guarda um hash que muda todo dia.
+async function registrarVisita(req, env, cors, ctx) {
+  const pagina = (await req.text()).slice(0, 20).trim();
+  if (cors["Access-Control-Allow-Origin"] && PAGINAS[pagina]) { // só páginas conhecidas, chamadas pelo nosso site
+    const dia = diaBR(), h = await sha256hex("visita|" + dia + "|" + (req.headers.get("CF-Connecting-IP") || "") + "|" + (env.ADMIN_TOKEN || ""));
+    ctx.waitUntil(env.DB.prepare("INSERT OR IGNORE INTO visitas (dia, h, pagina) VALUES (?,?,?)").bind(dia, h, pagina).run());
+  }
+  return new Response(null, { status: 204, headers: cors });
+}
+
+async function relatorio(env, dia, nota = " (parcial, até agora)") {
+  const ini = Date.parse(dia + "T00:00:00-03:00"), fim = ini + 86400_000, q = (sql, ...a) => env.DB.prepare(sql).bind(...a);
+  const [pg, tot, novos, fila, ap] = await Promise.all([
+    q("SELECT pagina, COUNT(*) AS n FROM visitas WHERE dia=? GROUP BY pagina", dia).all(),
+    q("SELECT COUNT(DISTINCT h) AS n FROM visitas WHERE dia=?", dia).first(),
+    q("SELECT COUNT(*) AS n FROM gatos WHERE criado>=? AND criado<?", ini, fim).first(),
+    q("SELECT COUNT(*) AS n FROM gatos WHERE status='pendente'").first(),
+    q("SELECT COUNT(*) AS n FROM gatos WHERE status='aprovado'").first(),
+  ]);
+  const por = Object.fromEntries(pg.results.map(r => [r.pagina, r.n]));
+  const texto = `Relatório SINADIGA - ${dia.split("-").reverse().join("/")}${nota}\n\n` +
+    `Visitantes únicos: ${tot.n}\n` + Object.entries(PAGINAS).map(([k, nome]) => `- ${nome}: ${por[k] || 0}`).join("\n") +
+    `\n\nNovos cadastros de gatos: ${novos.n}\nAguardando aprovação: ${fila.n}\nGatos no ar: ${ap.n}\n\nPainel: ${env.ADMIN_URL || ""}`;
+  return telegram(env, "sendMessage", { text: texto });
+}
 
 const corteRetencao = () => Date.now() - RETENCAO_DIAS * 86400_000;
 async function limparExpirados(env) {
   const r = await env.DB.prepare("DELETE FROM gatos WHERE criado < ? OR (status='pendente' AND criado < ?)").bind(corteRetencao(), Date.now() - PENDENTE_DIAS * 86400_000).run();
   await env.DB.prepare("DELETE FROM tentativas_admin WHERE ultima < ?").bind(Date.now() - 3600_000).run();
+  await env.DB.prepare("DELETE FROM visitas WHERE dia < ?").bind(diaBR(-35)).run(); // o relatório só usa o dia anterior
   console.log(`Limpeza diária: ${r.meta.changes} anúncio(s) com mais de ${RETENCAO_DIAS} dias apagado(s).`);
 }
 
@@ -84,6 +116,7 @@ async function rota(req, env, url, cors, ctx) {
     return g ? fotoResp(g.foto, cors, "public, max-age=86400") : resp({ erro: "Não encontrado." }, 404, cors);
   }
   if (m === "POST" && p === "/gatos") return cadastrar(req, env, cors, ctx);
+  if (m === "POST" && p === "/visita") return registrarVisita(req, env, cors, ctx);
 
   // ---------- administrador ----------
   if (p.startsWith("/admin/")) {
@@ -91,6 +124,10 @@ async function rota(req, env, url, cors, ctx) {
     if (recusa) return recusa;
     if (m === "POST" && p === "/admin/telegram-teste") { // confere se o bot está configurado: manda uma mensagem de teste
       const x = await telegram(env, "sendMessage", { text: "Teste do SINADIGA: as notificações de novos cadastros estão funcionando." });
+      return resp(x, x.ok ? 200 : 502, cors);
+    }
+    if (m === "POST" && p === "/admin/relatorio-teste") { // manda o relatório de hoje (parcial) para conferir o formato
+      const x = await relatorio(env, diaBR());
       return resp(x, x.ok ? 200 : 502, cors);
     }
     if (m === "GET" && p === "/admin/gatos") {
